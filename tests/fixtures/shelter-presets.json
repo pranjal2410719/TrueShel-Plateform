@@ -1,0 +1,82 @@
+{
+  "ladakhPassiveSolar": {
+    "name": "Ladakh Passive Solar High-Altitude Shelter",
+    "geometry": {
+      "length": 8.0,
+      "width": 6.0,
+      "height": 2.8,
+      "wallThickness": 0.35
+    },
+    "orientation": 0.0,
+    "roof": {
+      "type": "gabled",
+      "pitch": 25.0,
+      "overhang": 0.45
+    },
+    "openings": {
+      "windowArea": 12.0,
+      "windowCount": 4,
+      "doorCount": 1
+    },
+    "envelope": {
+      "wallLayers": [
+        { "id": "w1", "materialId": "rammed-earth", "name": "Rammed Earth", "thickness": 0.20, "conductivity": 0.75, "density": 1800, "specificHeat": 1000 },
+        { "id": "w2", "materialId": "straw-clay-insulation", "name": "Straw-Clay Insulation", "thickness": 0.12, "conductivity": 0.08, "density": 450, "specificHeat": 1400 },
+        { "id": "w3", "materialId": "lime-plaster", "name": "Lime Plaster", "thickness": 0.03, "conductivity": 0.70, "density": 1600, "specificHeat": 880 }
+      ],
+      "roofLayers": [
+        { "id": "r1", "materialId": "wood-rafter", "name": "Timber Decking", "thickness": 0.04, "conductivity": 0.13, "density": 550, "specificHeat": 1600 },
+        { "id": "r2", "materialId": "sheep-wool-insulation", "name": "Sheep Wool Insulation", "thickness": 0.15, "conductivity": 0.038, "density": 25, "specificHeat": 1800 },
+        { "id": "r3", "materialId": "mud-roofing", "name": "Compacted Mud Roofing", "thickness": 0.10, "conductivity": 0.85, "density": 1700, "specificHeat": 950 }
+      ],
+      "floorLayers": [
+        { "id": "f1", "materialId": "gravel-fill", "name": "Gravel Sub-base", "thickness": 0.15, "conductivity": 0.70, "density": 1600, "specificHeat": 800 },
+        { "id": "f2", "materialId": "aerated-concrete", "name": "Perlite Insulating Screed", "thickness": 0.08, "conductivity": 0.12, "density": 400, "specificHeat": 1000 },
+        { "id": "f3", "materialId": "stone-slab", "name": "Local Slate Flooring", "thickness": 0.03, "conductivity": 1.40, "density": 2400, "specificHeat": 850 }
+      ]
+    },
+    "thermalMass": {
+      "level": "high",
+      "pcmEnabled": true,
+      "pcmTemp": 21.0,
+      "pcmCapacity": 180.0
+    }
+  },
+  "standardMinimal": {
+    "name": "Standard Minimal Shelter",
+    "geometry": {
+      "length": 6.0,
+      "width": 4.0,
+      "height": 2.5,
+      "wallThickness": 0.25
+    },
+    "orientation": 0.0,
+    "roof": {
+      "type": "flat",
+      "pitch": 0.0,
+      "overhang": 0.3
+    },
+    "openings": {
+      "windowArea": 6.0,
+      "windowCount": 2,
+      "doorCount": 1
+    },
+    "envelope": {
+      "wallLayers": [
+        { "id": "w1", "materialId": "stone-masonry", "name": "Stone Masonry", "thickness": 0.25, "conductivity": 1.30, "density": 2200, "specificHeat": 900 }
+      ],
+      "roofLayers": [
+        { "id": "r1", "materialId": "timber", "name": "Timber Beam & Mud", "thickness": 0.15, "conductivity": 0.40, "density": 1200, "specificHeat": 1200 }
+      ],
+      "floorLayers": [
+        { "id": "f1", "materialId": "earth", "name": "Compacted Earth", "thickness": 0.20, "conductivity": 0.90, "density": 1500, "specificHeat": 850 }
+      ]
+    },
+    "thermalMass": {
+      "level": "medium",
+      "pcmEnabled": false,
+      "pcmTemp": 21.0,
+      "pcmCapacity": 0.0
+    }
+  }
+}

@@ -1,0 +1,131 @@
+@import "./tokens.css";
+
+@layer base {
+  * {
+    border-color: var(--color-border-subtle);
+  }
+
+  html {
+    background-color: var(--color-canvas);
+    color: var(--color-slate-ink);
+    font-family: var(--font-sans);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-slate-ink);
+    overflow-x: hidden;
+  }
+
+  /* Typography tracking defaults */
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: var(--tracking-tight);
+    font-weight: 600;
+  }
+
+  /* Micro-labels and uppercase tags */
+  .label-caps {
+    letter-spacing: var(--tracking-wider);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  /* High-tactile metric values */
+  .metric-value {
+    letter-spacing: var(--tracking-tighter);
+    font-weight: 600;
+  }
+}
+
+/* ── Design token utility class overrides ────────────────────────────────── */
+@layer utilities {
+  /* Border radius */
+  .rounded-card   { border-radius: var(--radius-card); }
+  .rounded-inner  { border-radius: var(--radius-inner); }
+  .rounded-pill   { border-radius: var(--radius-pill); }
+  .rounded-sm-tok { border-radius: var(--radius-sm); }
+  .rounded-md-tok { border-radius: var(--radius-md); }
+
+  /* Shadows */
+  .shadow-card       { box-shadow: var(--shadow-card); }
+  .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
+  .shadow-dropdown   { box-shadow: var(--shadow-dropdown); }
+
+  /* Colors — bg */
+  .bg-canvas         { background-color: var(--color-canvas); }
+  .bg-surface        { background-color: var(--color-surface); }
+  .bg-surface-hover  { background-color: var(--color-surface-hover); }
+  .bg-warm-fog       { background-color: var(--color-warm-fog); }
+  .bg-shop-violet        { background-color: var(--color-shop-violet); }
+  .bg-shop-violet-hover  { background-color: var(--color-shop-violet-hover); }
+  .bg-shop-violet-subtle { background-color: var(--color-shop-violet-subtle); }
+  .bg-thermal-cold    { background-color: var(--color-thermal-cold); }
+  .bg-thermal-comfort { background-color: var(--color-thermal-comfort); }
+  .bg-thermal-hot     { background-color: var(--color-thermal-hot); }
+  .bg-thermal-warn    { background-color: var(--color-thermal-warn); }
+
+  /* Colors — text */
+  .text-slate-ink       { color: var(--color-slate-ink); }
+  .text-slate-secondary { color: var(--color-slate-secondary); }
+  .text-slate-muted     { color: var(--color-slate-muted); }
+  .text-slate-subtle    { color: var(--color-slate-subtle); }
+  .text-shop-violet       { color: var(--color-shop-violet); }
+  .text-shop-violet-hover { color: var(--color-shop-violet-hover); }
+  .text-thermal-cold      { color: var(--color-thermal-cold); }
+  .text-thermal-comfort   { color: var(--color-thermal-comfort); }
+  .text-thermal-hot       { color: var(--color-thermal-hot); }
+  .text-thermal-warn      { color: var(--color-thermal-warn); }
+
+  /* Colors — border */
+  .border-border-subtle { border-color: var(--color-border-subtle); }
+  .border-border-active { border-color: var(--color-border-active); }
+  .border-shop-violet   { border-color: var(--color-shop-violet); }
+  .border-thermal-hot   { border-color: var(--color-thermal-hot); }
+
+  /* Focus ring */
+  .ring-shop-violet        { --tw-ring-color: var(--color-shop-violet); }
+  .ring-shop-violet-subtle { --tw-ring-color: var(--color-shop-violet-subtle); }
+
+  /* Touch-friendly slider */
+  input[type="range"] {
+    touch-action: pan-x;
+  }
+
+  /* Accessibility: minimum touch target size */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Responsive chart labels */
+  @media (max-width: 640px) {
+    .recharts-label,
+    .recharts-cartesian-axis-tick-value {
+      font-size: 10px;
+    }
+  }
+}
+
+/* Custom scrollbar matching canvas aesthetics */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-active);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate-subtle);
+}

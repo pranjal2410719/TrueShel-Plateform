@@ -1,0 +1,49 @@
+{
+  "name": "trueshel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node tests/runner.mjs",
+    "test:e2e": "node tests/runner.mjs",
+    "test:tier1": "node tests/runner.mjs --tier=1",
+    "test:tier2": "node tests/runner.mjs --tier=2",
+    "test:tier3": "node tests/runner.mjs --tier=3",
+    "test:tier4": "node tests/runner.mjs --tier=4",
+    "test:tier5": "node tests/runner.mjs --tier=5",
+    "test:coverage": "node --test --experimental-test-coverage tests/e2e/**/*.test.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@tanstack/react-query": "^5.66.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^1.16.0",
+    "next": "^15.1.0",
+    "postcss": "^8.5.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.1",
+    "tailwind-merge": "^3.0.1",
+    "tailwindcss": "^4.0.0",
+    "three": "^0.173.0",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@types/three": "^0.173.0",
+    "eslint": "^9.20.1",
+    "eslint-config-next": "^15.1.0",
+    "typescript": "^5.7.3"
+  }
+}

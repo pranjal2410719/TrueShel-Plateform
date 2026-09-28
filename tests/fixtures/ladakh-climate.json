@@ -1,0 +1,18 @@
+{
+  "location": "Leh, Ladakh, India",
+  "latitude": 34.1526,
+  "longitude": 77.5771,
+  "altitude": 3500,
+  "barometricPressure": 65500,
+  "airDensity": 0.852,
+  "winterDesignTemperature": -15.0,
+  "summerDesignTemperature": 25.0,
+  "extremeMinTemperature": -28.0,
+  "extremeMaxTemperature": 32.0,
+  "annualGHI": 1950,
+  "peakSolarIrradiance": 820,
+  "heatingDegreeDays": 4200,
+  "coolingDegreeDays": 120,
+  "windSpeedAvg": 3.8,
+  "relativeHumidityAvg": 32
+}

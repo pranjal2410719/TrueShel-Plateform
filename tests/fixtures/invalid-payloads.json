@@ -1,0 +1,44 @@
+{
+  "negativeDimensionShelter": {
+    "name": "Negative Dimension Shelter",
+    "geometry": {
+      "length": -8.0,
+      "width": 6.0,
+      "height": 2.8,
+      "wallThickness": 0.35
+    },
+    "roof": { "type": "flat", "pitch": 0, "overhang": 0.2 },
+    "openings": { "windowArea": 4.0, "windowCount": 2, "doorCount": 1 }
+  },
+  "excessiveGlazingShelter": {
+    "name": "Excessive Glazing Shelter",
+    "geometry": {
+      "length": 8.0,
+      "width": 6.0,
+      "height": 2.8,
+      "wallThickness": 0.35
+    },
+    "roof": { "type": "flat", "pitch": 0, "overhang": 0.2 },
+    "openings": {
+      "windowArea": 50.0,
+      "windowCount": 10,
+      "doorCount": 1
+    }
+  },
+  "nonPositiveConductivityLayer": {
+    "id": "bad-layer",
+    "materialId": "impossible-insulation",
+    "name": "Impossible Insulation",
+    "thickness": 0.1,
+    "conductivity": -0.05,
+    "density": 500,
+    "specificHeat": 1000
+  },
+  "mismatchedSimulationVectors": {
+    "id": "sim_mismatch",
+    "status": "completed",
+    "timeline": ["00:00", "01:00", "02:00"],
+    "indoorTemperature": [20.0, 20.5],
+    "outdoorTemperature": [-5.0, -6.0, -7.0]
+  }
+}

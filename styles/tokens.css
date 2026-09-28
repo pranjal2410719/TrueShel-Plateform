@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@theme {
+  /* =========================================================================
+   * TRUESHEL V2 DESIGN TOKENS — SINGLE SOURCE OF STYLING TRUTH
+   * ========================================================================= */
+
+  /* Canvas & Surfaces */
+  --color-canvas: #f2f4f5;
+  --color-surface: #ffffff;
+  --color-surface-hover: #fafafa;
+  --color-surface-active: #f4f4f5;
+  --color-surface-subtle: #f8fafc;
+
+  /* Primary Accent: Shop Violet */
+  --color-shop-violet: #5433eb;
+  --color-shop-violet-hover: #4628c7;
+  --color-shop-violet-active: #3b20af;
+  --color-shop-violet-subtle: #ece8fd;
+  --color-shop-violet-border: #d4ccfb;
+
+  /* Architectural Neutrals & Typography */
+  --color-slate-ink: #0f172a;
+  --color-slate-secondary: #475569;
+  --color-slate-muted: #64748b;
+  --color-slate-subtle: #94a3b8;
+  --color-warm-fog: #e5e7eb;
+  --color-border-subtle: #e2e8f0;
+  --color-border-active: #cbd5e1;
+
+  /* Semantic Thermal State Overlays */
+  --color-thermal-cold: #3b82f6;
+  --color-thermal-cold-subtle: #eff6ff;
+  --color-thermal-cold-border: #bfdbfe;
+
+  --color-thermal-comfort: #22c55e;
+  --color-thermal-comfort-subtle: #f0fdf4;
+  --color-thermal-comfort-border: #bbf7d0;
+
+  --color-thermal-hot: #ef4444;
+  --color-thermal-hot-subtle: #fef2f2;
+  --color-thermal-hot-border: #fecaca;
+
+  --color-thermal-warn: #f59e0b;
+  --color-thermal-warn-subtle: #fffbeb;
+  --color-thermal-warn-border: #fde68a;
+
+  /* Border Radii Scale */
+  --radius-card: 28px;
+  --radius-inner: 20px;
+  --radius-pill: 9999px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* Elevation Shadows */
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-inner-soft: inset 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+  /* Fonts */
+  --font-sans: "GT Standard", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Tracking (Letter Spacing) */
+  --tracking-tighter: -0.04em;
+  --tracking-tight: -0.02em;
+  --tracking-normal: -0.01em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+}
+
+/* =========================================================================
+ * SHADCN/UI CSS VARIABLE BINDINGS
+ * Mapped strictly to token custom properties without any hardcoded values
+ * ========================================================================= */
+:root {
+  --background: var(--color-canvas);
+  --foreground: var(--color-slate-ink);
+
+  --card: var(--color-surface);
+  --card-foreground: var(--color-slate-ink);
+
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-slate-ink);
+
+  --primary: var(--color-shop-violet);
+  --primary-foreground: var(--color-surface);
+
+  --secondary: var(--color-warm-fog);
+  --secondary-foreground: var(--color-slate-ink);
+
+  --muted: var(--color-warm-fog);
+  --muted-foreground: var(--color-slate-muted);
+
+  --accent: var(--color-shop-violet-subtle);
+  --accent-foreground: var(--color-shop-violet);
+
+  --destructive: var(--color-thermal-hot);
+  --destructive-foreground: var(--color-surface);
+
+  --border: var(--color-border-subtle);
+  --input: var(--color-border-subtle);
+  --ring: var(--color-shop-violet);
+
+  --radius: var(--radius-card);
+}
