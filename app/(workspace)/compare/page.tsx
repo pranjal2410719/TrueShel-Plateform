@@ -4,6 +4,8 @@ import React from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useComparisonStore } from "@/stores/comparison-store";
+import ShelterModel from "@/components/visualization/ShelterModel";
 
 export default function ComparePage() {
   const comparisonRows = [
@@ -14,6 +16,9 @@ export default function ComparePage() {
     { param: "Peak Heat Loss", designA: "1.82 kW", designB: "2.64 kW", delta: "-0.82 kW (-31.1%)", positive: true },
     { param: "Autonomy to 16°C", designA: "14.2 Hours", designB: "7.8 Hours", delta: "+6.4 h (+82.1%)", positive: true },
   ];
+
+  const designA = useComparisonStore(state => state.designA);
+  const designB = useComparisonStore(state => state.designB);
 
   return (
     <div className="space-y-6 w-full min-w-0">
@@ -61,7 +66,27 @@ export default function ComparePage() {
         </Card>
       </div>
 
-      {/* Side-by-side Comparison Table with Horizontal Scroll Containment */}
+      {/* 3D Model Comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
+        <div className="border rounded-lg overflow-hidden">
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design A (Optimized)</h2>
+          {designA ? (
+            <ShelterModel design={designA} mode="normal" />
+          ) : (
+            <div className="p-4 text-slate-muted">No Design A selected</div>
+          )}
+        </div>
+        <div className="border rounded-lg overflow-hidden">
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design B (Baseline)</h2>
+          {designB ? (
+            <ShelterModel design={designB} mode="normal" />
+          ) : (
+            <div className="p-4 text-slate-muted">No Design B selected</div>
+          )}
+        </div>
+      </div>
+
+      {/* Side-by-side Comparison Table */}
       <Card className="p-0 overflow-hidden">
         <div className="p-6 pb-4">
           <CardTitle>Parameter & Output Delta Matrix</CardTitle>
@@ -78,15 +103,13 @@ export default function ComparePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {comparisonRows.map((row) => (
+              {comparisonRows.map(row => (
                 <tr key={row.param} className="hover:bg-canvas/50 transition-colors">
                   <td className="py-3.5 px-6 font-medium text-slate-ink">{row.param}</td>
                   <td className="py-3.5 px-6 text-slate-ink font-semibold">{row.designA}</td>
                   <td className="py-3.5 px-6 text-slate-muted">{row.designB}</td>
                   <td className="py-3.5 px-6">
-                    <Badge variant={row.positive ? "comfort" : "default"}>
-                      {row.delta}
-                    </Badge>
+                    <Badge variant={row.positive ? "comfort" : "default"}>{row.delta}</Badge>
                   </td>
                 </tr>
               ))}
