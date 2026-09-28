@@ -1,130 +1,238 @@
 /*
- * lib/calculations/evaluateDesign.ts – Pure function that evaluates a ShelterDesign
- * against a climate profile and returns a SimulationResult compatible with the rest of the app.
- * It re‑uses the existing thermal calculation utilities (R‑value, U‑value, heat‑loss, solar‑gain)
- * and the mock climate data from lib/mock/repository.ts.
+ * lib/calculations/evaluateDesign.ts – Deterministic evaluation of a ShelterDesign
+ * Uses the real type definitions from '@/types' and the mock climate data.
+ * The calculation is still simplified but respects the required shapes:
+ *   – proper SimulationConfiguration & SimulationResult
+ *   – ComfortAnalysis, HeatFlowBreakdown, ThermalState values
+ *   – autonomy, risk, IDs, timestamps
  */
 
-import { computeRValue, computeUValue, estimateHeatLoss, estimateSolarGain } from '@/lib/calculations/thermal';
-import type { ShelterDesign, Climate, SimulationResult, SimulationConfig } from '@/types';
+import {
+  computeRValue,
+  computeUValue,
+  estimateHeatLoss,
+  estimateSolarGain,
+} from '@/lib/calculations/thermal';
+import type {
+  ShelterDesign,
+  ClimateData,
+  SimulationResult,
+  SimulationConfiguration,
+  ComfortAnalysis,
+  HeatFlowBreakdown,
+  ThermalState,
+} from '@/types';
 import { LADAKH_CLIMATE } from '@/lib/mock/repository';
+import { v4 as uuidv4 } from 'uuid'; // simple UUID generator (installed via npm)
 
-/**
- * Default simulation configuration – can be extended later.
- */
-const DEFAULT_SIM_CONFIG: SimulationConfig = {
-  timestepHours: 1,
-  totalHours: 24,
-  comfortMin: 18,
-  comfortMax: 26,
+/** Default simulation configuration – can be overridden when needed */
+const DEFAULT_SIM_CONFIG: SimulationConfiguration = {
+  durationHours: 24,
+  timeStepHours: 1,
+  comfortTempMin: 18,
+  comfortTempMax: 26,
+  useThermalMass: true,
+  usePCM: false,
+  useSolar: true,
+  useVentilation: true,
 };
 
 /**
- * Helper to compute U‑value for a wall/roof/floor assembly.
+ * Helper: map indoor temperature to a ThermalState string required by the type.
  */
-function assemblyU(assembly: ShelterDesign['envelope']['wall']): number {
-  // WallAssembly already contains a pre‑computed rValue.
-  return computeUValue(assembly.rValue);
+function mapToThermalState(tempC: number, min: number, max: number): ThermalState {
+  if (tempC < min) return 'under-comfort';
+  if (tempC > max) return 'overheating';
+  return 'comfort';
 }
 
 /**
- * Evaluate a shelter design over a 24 h period.
- * Returns a SimulationResult that matches the shape expected by the dashboard and other pages.
+ * Evaluate a shelter design for the supplied climate and configuration.
+ * Returns a fully typed SimulationResult compatible with the rest of the app.
  */
 export function evaluateShelterDesign(
   design: ShelterDesign,
-  climate: Climate = LADAKH_CLIMATE,
-  config: SimulationConfig = DEFAULT_SIM_CONFIG,
+  climate: ClimateData = LADAKH_CLIMATE,
+  config: SimulationConfiguration = DEFAULT_SIM_CONFIG,
 ): SimulationResult {
-  const { timestepHours, totalHours, comfortMin, comfortMax } = config;
-  const steps = totalHours / timestepHours;
+  const {
+    durationHours,
+    timeStepHours,
+    comfortTempMin,
+    comfortTempMax,
+    useThermalMass,
+    usePCM,
+    useSolar,
+    useVentilation,
+  } = config;
 
-  // Pre‑compute U‑values for envelope components.
+  const steps = Math.floor(durationHours / timeStepHours);
+
+  // ----- Envelope U‑values ---------------------------------------------------
   const wallU = computeUValue(computeRValue(design.envelope.wall.layers));
   const roofU = computeUValue(computeRValue(design.envelope.roof.layers));
   const floorU = computeUValue(computeRValue(design.envelope.floor.layers));
 
-  // Geometry – floor area and wall area.
-  const floorArea = design.geometry.length * design.geometry.width;
-  const wallArea = 2 * (design.geometry.length + design.geometry.width) * design.geometry.height;
-  const roofArea = design.geometry.length * design.geometry.width; // assuming simple roof projection
+  // ----- Geometry -----------------------------------------------------------
+  const { length, width, height } = design.geometry;
+  const floorArea = length * width; // m²
+  const wallArea = 2 * (length + width) * height; // m² (all four walls)
+  const roofArea = length * width; // projection – simple for flat/gabled approximation
 
-  // Glazing characteristics – assume a generic SHGC.
-  const SHGC = 0.6;
+  // ----- Thermal mass (simplified) ------------------------------------------
+  // Use level to pick a numeric heat capacity factor (kJ/K).
+  const massFactor = useThermalMass
+    ? design.thermalMass.level === 'low'
+      ? 500
+      : design.thermalMass.level === 'medium'
+      ? 1000
+      : 2000
+    : 0; // no thermal mass -> 0 capacity
 
-  const indoorTemps: number[] = [];
-  const outdoorTemps: number[] = [];
-  const solarIrradiances: number[] = [];
-  const heatLosses: number[] = [];
-  const solarGains: number[] = [];
-  const comfort: boolean[] = [];
+  // ----- PCM (simplified) ---------------------------------------------------
+  const pcmEnabled = usePCM && design.pcm.enabled;
 
-  let cumulativeHeatLoss = 0;
-  let cumulativeSolarGain = 0;
+  // ----- Simulation arrays ---------------------------------------------------
+  const indoorTemperature: number[] = [];
+  const outdoorTemperature: number[] = [];
+  const solarIrradiance: number[] = [];
+  const heatGain: number[] = [];
+  const heatLoss: number[] = [];
+  const storage: number[] = [];
+  const thermalStates: ThermalState[] = [];
 
-  for (let i = 0; i < steps; i++) {
-    const hourIdx = i * timestepHours;
-    const climateHour = climate.hourlyData[hourIdx % climate.hourlyData.length];
-    const outdoor = climateHour.temperature;
-    const irradiance = climateHour.solarIrradiance;
+  // Initial indoor temperature – start a few degrees above outdoor for stability.
+  let prevIndoor = climate.hourlyTemperature[0] + 5;
 
-    // Heat loss through envelope (steady‑state approximation).
-    const qWall = estimateHeatLoss(wallU, wallArea, indoorTemps[i - 1] ?? comfortMin - 5 - outdoor);
-    const qRoof = estimateHeatLoss(roofU, roofArea, indoorTemps[i - 1] ?? comfortMin - 5 - outdoor);
-    const qFloor = estimateHeatLoss(floorU, floorArea, indoorTemps[i - 1] ?? comfortMin - 5 - outdoor);
+  for (let step = 0; step < steps; step++) {
+    const hourIdx = step * timeStepHours;
+    const outdoor = climate.hourlyTemperature[hourIdx % climate.hourlyTemperature.length];
+    const irradiance = climate.hourlySolarIrradiance[hourIdx % climate.hourlySolarIrradiance.length];
+
+    // ---- Solar gain --------------------------------------------------------
+    const shgc = 0.6; // generic solar heat‑gain coefficient for glazing
+    const solarGain = useSolar ? estimateSolarGain(shgc, irradiance, design.openings.windowArea) : 0;
+
+    // ---- Envelope heat loss ------------------------------------------------
+    const deltaT = prevIndoor - outdoor;
+    const qWall = estimateHeatLoss(wallU, wallArea, deltaT);
+    const qRoof = estimateHeatLoss(roofU, roofArea, deltaT);
+    const qFloor = estimateHeatLoss(floorU, floorArea, deltaT);
     const totalLoss = qWall + qRoof + qFloor;
 
-    // Solar gain through windows – use window area (south‑facing only for simplicity).
-    const solarGain = estimateSolarGain(SHGC, irradiance, design.openings.windowArea);
+    // ---- Heat balance ------------------------------------------------------
+    // Simplified energy balance: Q = m·c·ΔT => ΔT = (gain - loss) / (massFactor * 1000)
+    // massFactor is in kJ/K, so convert to J/K by *1000.
+    const netEnergy = solarGain - totalLoss; // watts (J/s)
+    const dtSeconds = timeStepHours * 3600;
+    const deltaTemp = massFactor > 0 ? netEnergy * dtSeconds / (massFactor * 1000) : 0;
+    const indoor = prevIndoor + deltaTemp;
 
-    // Simple energy balance: indoorTemp = previous + (gain - loss) / (effectiveHeatCapacity).
-    // Effective heat capacity approximated from thermal mass level.
-    const massFactor =
-      design.thermalMass.level === 'low'
-        ? 0.5
-        : design.thermalMass.level === 'medium'
-        ? 1.0
-        : 2.0;
-    const delta = (solarGain - totalLoss) * massFactor * 0.001; // scaling factor for °C change
-    const prevTemp = indoorTemps[i - 1] ?? outdoor + 5; // start slightly above outdoor
-    const indoor = prevTemp + delta;
+    // ---- PCM effect (very coarse) ------------------------------------------
+    // If PCM is enabled and indoor crosses melting point, add/subtract latent heat.
+    let storageChange = 0;
+    if (pcmEnabled) {
+      const { meltingPoint, latentHeat, thickness } = design.pcm;
+      // Approximate stored energy as latentHeat * mass (kg) where mass = density * volume.
+      // Use material density from library; for simplicity assume density = 860 (paraffin).
+      const pcmDensity = 860; // kg/m³ (paraffin typical)
+      const volume = (design.geometry.length * design.geometry.width * thickness) / 1_000_000; // m³ from mm
+      const pcmMass = pcmDensity * volume; // kg
+      const energyStored = pcmMass * latentHeat; // kJ
+      // If indoor > melting point, assume PCM absorbs latent heat (cooling effect).
+      if (indoor > meltingPoint) storageChange = -energyStored / dtSeconds; // negative contribution to netEnergy
+      else storageChange = energyStored / dtSeconds; // release heat when below point
+    }
 
-    indoorTemps.push(indoor);
-    outdoorTemps.push(outdoor);
-    solarIrradiances.push(irradiance);
-    heatLosses.push(totalLoss);
-    solarGains.push(solarGain);
-    comfort.push(indoor >= comfortMin && indoor <= comfortMax);
-    cumulativeHeatLoss += totalLoss;
-    cumulativeSolarGain += solarGain;
+    const indoorAdjusted = indoor + storageChange * dtSeconds / (massFactor > 0 ? massFactor * 1000 : 1);
+
+    // Record arrays
+    indoorTemperature.push(indoorAdjusted);
+    outdoorTemperature.push(outdoor);
+    solarIrradiance.push(irradiance);
+    heatGain.push(solarGain);
+    heatLoss.push(totalLoss);
+    storage.push(storageChange);
+    thermalStates.push(mapToThermalState(indoorAdjusted, comfortTempMin, comfortTempMax));
+
+    // Prepare for next step
+    prevIndoor = indoorAdjusted;
   }
 
-  // Derive aggregate metrics.
-  const comfortHours = comfort.filter(Boolean).length * timestepHours;
-  const peakHeatLoss = Math.max(...heatLosses);
-  const peakSolarGain = Math.max(...solarGains);
-  const autonomyHours = (design.thermalMass.level === 'high' ? 30 : design.thermalMass.level === 'medium' ? 20 : 10);
+  // ----- Comfort analysis ---------------------------------------------------
+  const comfortHours = indoorTemperature.filter(
+    (t) => t >= comfortTempMin && t <= comfortTempMax,
+  ).length * timeStepHours;
+  const underComfortHours = indoorTemperature.filter((t) => t < comfortTempMin).length * timeStepHours;
+  const overheatingHours = indoorTemperature.filter((t) => t > comfortTempMax).length * timeStepHours;
+  const comfortRatio = comfortHours / durationHours;
 
+  const comfort: ComfortAnalysis = {
+    comfortHours,
+    underComfortHours,
+    overheatingHours,
+    comfortRatio,
+  };
+
+  // ----- Heat flow breakdown ------------------------------------------------
+  const totalHeatLoss = heatLoss.reduce((a, b) => a + b, 0);
+  const wallsLoss = heatLoss.reduce((sum, _, i) => {
+    const deltaT = indoorTemperature[i] - outdoorTemperature[i];
+    return sum + estimateHeatLoss(wallU, wallArea, deltaT);
+  }, 0);
+  const roofLoss = heatLoss.reduce((sum, _, i) => {
+    const deltaT = indoorTemperature[i] - outdoorTemperature[i];
+    return sum + estimateHeatLoss(roofU, roofArea, deltaT);
+  }, 0);
+  const floorLoss = heatLoss.reduce((sum, _, i) => {
+    const deltaT = indoorTemperature[i] - outdoorTemperature[i];
+    return sum + estimateHeatLoss(floorU, floorArea, deltaT);
+  }, 0);
+
+  const heatFlowBreakdown: HeatFlowBreakdown = {
+    roof: Math.round((roofLoss / totalHeatLoss) * 100),
+    walls: Math.round((wallsLoss / totalHeatLoss) * 100),
+    floor: Math.round((floorLoss / totalHeatLoss) * 100),
+    windows: 0,
+    infiltration: 0,
+  };
+
+  // ----- Autonomy (hours until indoor falls below 16°C after the last sunny hour) -----
+  const threshold = 16;
+  let autonomy = 0;
+  for (let i = steps - 1; i >= 0; i--) {
+    if (indoorTemperature[i] >= threshold) autonomy++;
+    else break;
+  }
+
+  // ----- Risk categorisation (simple heuristic) ----------------------------
+  let risk: 'low' | 'moderate' | 'high' | 'critical' = 'low';
+  if (autonomy < 8) risk = 'critical';
+  else if (autonomy < 12) risk = 'high';
+  else if (autonomy < 18) risk = 'moderate';
+  else risk = 'low';
+
+  // ----- Build result -------------------------------------------------------
   const result: SimulationResult = {
-    timeline: Array.from({ length: steps }, (_, i) => i * timestepHours),
-    indoorTemperature: indoorTemps,
-    outdoorTemperature: outdoorTemps,
-    solarIrradiance: solarIrradiances,
-    heatLoss: heatLosses,
-    solarGain: solarGains,
-    heatGain: solarGains, // for compatibility
-    storage: [], // placeholder – not used elsewhere yet
+    id: uuidv4(),
+    projectId: 'project-1',
+    shelterDesignId: design.id,
+    configuration: config,
+    timeline: Array.from({ length: steps }, (_, i) => i * timeStepHours),
+    indoorTemperature,
+    outdoorTemperature,
+    solarIrradiance,
+    heatGain,
+    heatLoss,
+    storage,
     comfort,
-    thermalStates: indoorTemps.map((t) => (t < comfortMin ? 'under' : t > comfortMax ? 'over' : 'comfort')),
-    heatFlowBreakdown: {
-      walls: heatLosses.map((_, i) => estimateHeatLoss(wallU, wallArea, indoorTemps[i] - outdoorTemps[i])),
-      roof: heatLosses.map((_, i) => estimateHeatLoss(roofU, roofArea, indoorTemps[i] - outdoorTemps[i])),
-      floor: heatLosses.map((_, i) => estimateHeatLoss(floorU, floorArea, indoorTemps[i] - outdoorTemps[i])),
-    },
-    peakHeatLoss,
-    peakSolarGain,
-    autonomyHours,
-    risk: {}, // placeholder – risk calculations are elsewhere
+    thermalStates,
+    heatFlowBreakdown,
+    peakHeatLoss: Math.max(...heatLoss),
+    peakSolarGain: Math.max(...solarIrradiance.map((irr, idx) => estimateSolarGain(0.6, irr, design.openings.windowArea))),
+    autonomy,
+    risk,
+    completedAt: new Date().toISOString(),
   };
 
   return result;

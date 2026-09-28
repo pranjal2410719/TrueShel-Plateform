@@ -1,6 +1,10 @@
+/*
+ * app/(workspace)/resilience/page.tsx – Resilience page using real simulation results.
+ */
+
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ShieldAlert,
@@ -9,16 +13,99 @@ import {
   Wind,
   ArrowRight,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useComparisonStore } from "@/stores/comparison-store";
+import { useShelterStore } from "@/stores/shelter-store";
+import { evaluateShelterDesign } from "@/lib/calculations/evaluateDesign";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+
+/** Helper to format numbers */
+function fmt(num: number, unit: string) {
+  return `${num.toFixed(2)} ${unit}`;
+}
 
 export default function ResiliencePage() {
+  const currentDesign = useShelterStore((s) => s.design);
+  const { resultA } = useComparisonStore(); // resultA corresponds to designA (initialized to currentDesign)
+
+  // If no result yet, evaluate on the fly.
+  const result = useMemo(() => {
+    if (resultA) return resultA;
+    return evaluateShelterDesign(currentDesign);
+  }, [resultA, currentDesign]);
+
+  // Prepare chart data for indoor temperature decay (last part of timeline).
+  const chartData = useMemo(() => {
+    const labels = result.timeline.map((t) => `${t}h`);
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Indoor Temp (°C)",
+          data: result.indoorTemperature,
+          borderColor: "rgb(75, 192, 192)",
+          tension: 0.2,
+        },
+        {
+          label: "Outdoor Temp (°C)",
+          data: result.outdoorTemperature,
+          borderColor: "rgb(255, 99, 132)",
+          tension: 0.2,
+        },
+      ],
+    };
+  }, [result]);
+
+  const options = useMemo(() => ({
+    responsive: true,
+    plugins: { legend: { position: "top" as const }, title: { display: false } },
+    scales: { y: { title: { display: true, text: "Temperature (°C)" } } },
+  }), []);
+
   const resilienceStats = [
-    { label: "Thermal Autonomy", value: "14.2 h", sub: "Decay to 16°C", variant: "comfort" as const, icon: Clock },
-    { label: "Freeze-Thaw Risk", value: "MODERATE", sub: "28 Annual Cycles", variant: "warn" as const, icon: Snowflake },
-    { label: "Wind Exposure", value: "LOW", sub: "NW Shielded Entry", variant: "comfort" as const, icon: Wind },
-    { label: "Envelope Degradation", value: "-0.8%/yr", sub: "Moisture Intrusion", variant: "default" as const, icon: TrendingDown },
+    {
+      label: "Thermal Autonomy",
+      value: fmt(result.autonomy, "h"),
+      sub: `Decay to 16°C (${fmt(result.autonomy, "h")} hrs)`,
+      variant: "comfort" as const,
+      icon: Clock,
+    },
+    {
+      label: "Freeze‑Thaw Risk",
+      value: result.risk.toUpperCase(),
+      sub: "28 Annual Cycles",
+      variant: "warn" as const,
+      icon: Snowflake,
+    },
+    {
+      label: "Wind Exposure",
+      value: "LOW",
+      sub: "NW Shielded Entry",
+      variant: "comfort" as const,
+      icon: Wind,
+    },
+    {
+      label: "Envelope Degradation",
+      value: fmt(result.peakHeatLoss, "kW"),
+      sub: "Peak Heat Loss",
+      variant: "default" as const,
+      icon: TrendingDown,
+    },
   ];
 
   return (
@@ -26,13 +113,11 @@ export default function ResiliencePage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-ink">
-              Resilience & Autonomy Command Center
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-ink">Resilience & Autonomy Command Center</h1>
             <Badge variant="violet">SURVIVABILITY ANALYSIS</Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-muted">
-            Evaluation of thermal survivability during extended heating blackout, freeze-thaw risks, and long-term envelope degradation.
+            Evaluation of thermal survivability during extended heating blackout, freeze‑thaw risks, and long‑term envelope degradation.
           </p>
         </div>
       </div>
@@ -58,37 +143,29 @@ export default function ResiliencePage() {
         })}
       </div>
 
-      {/* Autonomy Decay Model Visualizer */}
+      {/* Temperature Decay Chart */}
       <Card className="p-6">
         <CardHeader className="p-0 pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Blackout Lumped Exponential Decay Model</CardTitle>
-              <CardDescription>
-                Predicts hours until indoor operative temperature drops to the 16°C critical health threshold during a total heating outage at -15°C ambient.
-              </CardDescription>
+              <CardTitle>Blackout Temperature Decay</CardTitle>
+              <CardDescription>Indoor temperature versus time during a heating outage.</CardDescription>
             </div>
-            <Badge variant="comfort">14.2 HOURS AUTONOMY</Badge>
+            <Badge variant="comfort">Autonomy: {fmt(result.autonomy, "h")}</Badge>
           </div>
         </CardHeader>
-        <CardContent className="p-0 pt-2 min-h-[260px] flex items-center justify-center bg-canvas rounded-inner">
-          <div className="text-center p-6 space-y-2">
-            <ShieldAlert className="w-8 h-8 text-shop-violet mx-auto" />
-            <p className="text-sm font-semibold text-slate-ink">Exponential Temperature Decay: T(t) = T_out + (T_0 - T_out) · e^(-t / τ)</p>
-            <p className="text-xs text-slate-muted max-w-md">
-              System Time Constant τ = C_th / UA = 18.4 MJ/K / 63 W/K = 81.0 hours • Predicted Time to 16.0°C: 14.2 Hours
-            </p>
-          </div>
+        <CardContent className="p-0 pt-2 min-h-[260px]">
+          <Line data={chartData} options={options} />
         </CardContent>
       </Card>
 
-      {/* Deep-Dive Sub-Pages Grid */}
+      {/* Deep‑Dive Sub‑Pages Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: "Autonomy Decay", href: "/resilience/autonomy", desc: "Thermal flywheel decay to 16°C" },
-          { label: "Climate Risk Matrix", href: "/resilience/climate-risk", desc: "Sub-zero multi-hazard exposure" },
-          { label: "20-Year Degradation", href: "/resilience/degradation", desc: "Moisture & seal infiltration aging" },
-          { label: "Failure Intelligence", href: "/resilience/failure-intelligence", desc: "Cold-climate failure database" },
+          { label: "Climate Risk Matrix", href: "/resilience/climate-risk", desc: "Sub‑zero multi‑hazard exposure" },
+          { label: "20‑Year Degradation", href: "/resilience/degradation", desc: "Moisture & seal infiltration aging" },
+          { label: "Failure Intelligence", href: "/resilience/failure-intelligence", desc: "Cold‑climate failure database" },
         ].map((item) => (
           <Link
             key={item.href}

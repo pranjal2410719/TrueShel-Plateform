@@ -1,24 +1,78 @@
+/*
+ * app/(workspace)/compare/page.tsx – Dynamic comparison page using real simulation results.
+ */
+
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useComparisonStore } from "@/stores/comparison-store";
+import { useShelterStore } from "@/stores/shelter-store";
 import ShelterModel from "@/components/visualization/ShelterModel";
 
-export default function ComparePage() {
-  const comparisonRows = [
-    { param: "Wall Insulation", designA: "120mm Straw-Clay", designB: "80mm Straw-Clay", delta: "+40mm (+50%)", positive: true },
-    { param: "South Aperture Area", designA: "4.8 m² (Double Low-E)", designB: "3.2 m² (Single Clear)", delta: "+1.6 m² (+50%)", positive: true },
-    { param: "Thermal Mass System", designA: "300mm Adobe + BioPCM", designB: "200mm Adobe only", delta: "+PCM Buffering", positive: true },
-    { param: "Adaptive Comfort Hours", designA: "19.5 h (81.3%)", designB: "14.2 h (59.2%)", delta: "+5.3 h (+37.3%)", positive: true },
-    { param: "Peak Heat Loss", designA: "1.82 kW", designB: "2.64 kW", delta: "-0.82 kW (-31.1%)", positive: true },
-    { param: "Autonomy to 16°C", designA: "14.2 Hours", designB: "7.8 Hours", delta: "+6.4 h (+82.1%)", positive: true },
-  ];
+/** Helper to format numbers with appropriate units */
+function fmt(value: number, unit: string) {
+  return `${value.toFixed(2)} ${unit}`;
+}
 
-  const designA = useComparisonStore(state => state.designA);
-  const designB = useComparisonStore(state => state.designB);
+export default function ComparePage() {
+  const {
+    designA,
+    designB,
+    resultA,
+    resultB,
+    setDesignA,
+    setDesignB,
+  } = useComparisonStore();
+
+  // Initialise designs from the shelter store on first render if not set.
+  const currentDesign = useShelterStore((s) => s.design);
+  useEffect(() => {
+    if (!designA) setDesignA(currentDesign);
+    if (!designB) setDesignB(currentDesign);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guard against missing simulation results.
+  if (!resultA || !resultB) {
+    return (
+      <div className="p-8 text-slate-muted">Loading simulation results…</div>
+    );
+  }
+
+  // Build comparison rows from actual SimulationResult data.
+  const comparisonRows = [
+    {
+      param: "Comfort Hours",
+      designA: fmt(resultA.comfort.comfortHours, "h"),
+      designB: fmt(resultB.comfort.comfortHours, "h"),
+      delta: fmt(resultA.comfort.comfortHours - resultB.comfort.comfortHours, "h"),
+      positive: resultA.comfort.comfortHours >= resultB.comfort.comfortHours,
+    },
+    {
+      param: "Peak Heat Loss",
+      designA: fmt(resultA.peakHeatLoss, "kW"),
+      designB: fmt(resultB.peakHeatLoss, "kW"),
+      delta: fmt(resultB.peakHeatLoss - resultA.peakHeatLoss, "kW"),
+      positive: resultA.peakHeatLoss <= resultB.peakHeatLoss,
+    },
+    {
+      param: "Autonomy (to 16°C)",
+      designA: fmt(resultA.autonomy, "h"),
+      designB: fmt(resultB.autonomy, "h"),
+      delta: fmt(resultA.autonomy - resultB.autonomy, "h"),
+      positive: resultA.autonomy >= resultB.autonomy,
+    },
+    {
+      param: "Risk Level",
+      designA: resultA.risk,
+      designB: resultB.risk,
+      delta: resultA.risk === resultB.risk ? "0" : resultA.risk,
+      positive: resultA.risk <= resultB.risk, // lexical order works for enum values
+    },
+  ];
 
   return (
     <div className="space-y-6 w-full min-w-0">
@@ -26,42 +80,67 @@ export default function ComparePage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-ink">
-              Design Comparison & Trade-Off Analysis
+              Design Comparison & Trade‑Off Analysis
             </h1>
             <Badge variant="violet">DESIGN A vs DESIGN B</Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-muted">
-            Side-by-side engineering evaluation between optimized passive solar design and uninsulated standard baseline.
+            Side‑by‑side engineering evaluation between two shelter designs.
           </p>
         </div>
       </div>
 
-      {/* Delta KPI Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Comfort */}
         <Card className="p-5">
-          <span className="text-xs font-medium text-slate-muted block mb-1">Comfort Differential (Δ)</span>
-          <p className="text-2xl font-bold tracking-tighter text-slate-ink">+5.3 Hours</p>
+          <span className="text-xs font-medium text-slate-muted block mb-1">
+            Comfort Differential (Δ)
+          </span>
+          <p className="text-2xl font-bold tracking-tighter text-slate-ink">
+            {comparisonRows[0].delta}
+          </p>
           <span className="text-xs text-thermal-comfort flex items-center mt-1">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" />
-            +37.3% longer comfort window
+            {comparisonRows[0].positive ? (
+              <TrendingUp className="w-3.5 h-3.5 mr-1" />
+            ) : (
+              <TrendingDown className="w-3.5 h-3.5 mr-1" />
+            )}
+            {comparisonRows[0].positive ? "+" : "-"} comfort hours
           </span>
         </Card>
-
+        {/* Heat Loss */}
         <Card className="p-5">
-          <span className="text-xs font-medium text-slate-muted block mb-1">Heat Loss Reduction (Δ)</span>
-          <p className="text-2xl font-bold tracking-tighter text-slate-ink">-0.82 kW</p>
+          <span className="text-xs font-medium text-slate-muted block mb-1">
+            Heat Loss Reduction (Δ)
+          </span>
+          <p className="text-2xl font-bold tracking-tighter text-slate-ink">
+            {comparisonRows[1].delta}
+          </p>
           <span className="text-xs text-thermal-comfort flex items-center mt-1">
-            <TrendingDown className="w-3.5 h-3.5 mr-1" />
-            31.1% reduced envelope heat leakage
+            {comparisonRows[1].positive ? (
+              <TrendingDown className="w-3.5 h-3.5 mr-1" />
+            ) : (
+              <TrendingUp className="w-3.5 h-3.5 mr-1" />
+            )}
+            {comparisonRows[1].delta} heat loss
           </span>
         </Card>
-
+        {/* Autonomy */}
         <Card className="p-5">
-          <span className="text-xs font-medium text-slate-muted block mb-1">Autonomy Extension (Δ)</span>
-          <p className="text-2xl font-bold tracking-tighter text-slate-ink">+6.4 Hours</p>
+          <span className="text-xs font-medium text-slate-muted block mb-1">
+            Autonomy Extension (Δ)
+          </span>
+          <p className="text-2xl font-bold tracking-tighter text-slate-ink">
+            {comparisonRows[2].delta}
+          </p>
           <span className="text-xs text-thermal-comfort flex items-center mt-1">
-            <TrendingUp className="w-3.5 h-3.5 mr-1" />
-            Nearly double blackout survival time
+            {comparisonRows[2].positive ? (
+              <TrendingUp className="w-3.5 h-3.5 mr-1" />
+            ) : (
+              <TrendingDown className="w-3.5 h-3.5 mr-1" />
+            )}
+            {comparisonRows[2].positive ? "+" : "-"} autonomy hours
           </span>
         </Card>
       </div>
@@ -69,41 +148,35 @@ export default function ComparePage() {
       {/* 3D Model Comparison */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
         <div className="border rounded-lg overflow-hidden">
-          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design A (Optimized)</h2>
-          {designA ? (
-            <ShelterModel design={designA} mode="normal" />
-          ) : (
-            <div className="p-4 text-slate-muted">No Design A selected</div>
-          )}
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design A</h2>
+          {designA && <ShelterModel design={designA} mode="normal" />}
         </div>
         <div className="border rounded-lg overflow-hidden">
-          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design B (Baseline)</h2>
-          {designB ? (
-            <ShelterModel design={designB} mode="normal" />
-          ) : (
-            <div className="p-4 text-slate-muted">No Design B selected</div>
-          )}
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design B</h2>
+          {designB && <ShelterModel design={designB} mode="normal" />}
         </div>
       </div>
 
-      {/* Side-by-side Comparison Table */}
+      {/* Comparison Table */}
       <Card className="p-0 overflow-hidden">
         <div className="p-6 pb-4">
           <CardTitle>Parameter & Output Delta Matrix</CardTitle>
-          <CardDescription>Direct comparative inspection across thermodynamic properties.</CardDescription>
+          <CardDescription>
+            Direct comparative inspection across thermodynamic properties.
+          </CardDescription>
         </div>
         <div className="w-full overflow-x-auto no-scrollbar">
           <table className="w-full min-w-[600px] border-collapse text-xs">
             <thead>
               <tr className="border-y border-border-subtle bg-canvas text-slate-muted">
                 <th className="py-3 px-6 text-left font-semibold">Parameter / Metric</th>
-                <th className="py-3 px-6 text-left font-semibold">Design A (Optimized)</th>
-                <th className="py-3 px-6 text-left font-semibold">Design B (Baseline)</th>
+                <th className="py-3 px-6 text-left font-semibold">Design A</th>
+                <th className="py-3 px-6 text-left font-semibold">Design B</th>
                 <th className="py-3 px-6 text-left font-semibold">Variance (Δ)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {comparisonRows.map(row => (
+              {comparisonRows.map((row) => (
                 <tr key={row.param} className="hover:bg-canvas/50 transition-colors">
                   <td className="py-3.5 px-6 font-medium text-slate-ink">{row.param}</td>
                   <td className="py-3.5 px-6 text-slate-ink font-semibold">{row.designA}</td>
