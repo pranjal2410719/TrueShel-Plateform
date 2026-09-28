@@ -110,10 +110,10 @@ export function getTemperatureColor(
 /**
  * Maps a temperature to a Three.js-compatible packed hex integer.
  * Colours sourced from CSS tokens:
- *   thermal-cold    #3b82f6
- *   thermal-comfort #22c55e
- *   thermal-warn    #f59e0b
- *   thermal-hot     #ef4444
+ *   thermal-cold    (blue)
+ *   thermal-comfort (green)
+ *   thermal-warn    (amber)
+ *   thermal-hot     (red)
  *
  * @returns Packed RGB integer suitable for THREE.Color
  */

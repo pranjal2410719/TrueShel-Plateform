@@ -27,6 +27,7 @@ interface SimulationStoreState extends SimulationState {
   setResult: (result: SimulationResult) => void;
   setError: (message: string) => void;
   reset: () => void;
+  runSimulation: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +112,36 @@ export const useSimulationStore = create<SimulationStoreState>()((set) => ({
       result: null,
       configuration: DEFAULT_CONFIGURATION,
     }),
+  // Run the full simulation using current design and config
+  runSimulation: async () => {
+    // set running state
+    set((state) => ({
+      status: 'running' as SimulationStatus,
+      progress: 0,
+      currentStep: 'Evaluating design…',
+      error: null,
+    }));
+    try {
+      const { evaluateShelterDesign } = await import('@/lib/calculations/evaluateDesign');
+      const { useShelterDesign } = await import('@/stores/shelter-store');
+      const design = useShelterDesign();
+      const config = (await import('@/stores/simulation-store')).useSimulationStore.getState().configuration;
+      const result = evaluateShelterDesign(design, undefined, config);
+      set({
+        status: 'complete' as SimulationStatus,
+        result,
+        progress: 100,
+        currentStep: null,
+        error: null,
+      });
+    } catch (e: any) {
+      set({
+        status: 'error' as SimulationStatus,
+        error: e.message ?? 'Simulation failed',
+        currentStep: null,
+      });
+    }
+  },
 }));
 
 // ---------------------------------------------------------------------------

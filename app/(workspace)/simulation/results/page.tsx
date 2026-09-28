@@ -2,19 +2,53 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { ArrowRight } from "lucide-react";
+import { useSimulationStore } from "@/stores/simulation-store";
 
 export default function SimulationResultsPage() {
-  const metrics = [
-    { label: "Operative Temperature", value: "21.4°C", status: "COMFORT", variant: "comfort" as const, sub: "T_op Peak 23.6°C" },
-    { label: "Adaptive Comfort Hours", value: "19.5 h", status: "81.3%", variant: "comfort" as const, sub: "ASHRAE 55 Target: ≥75%" },
-    { label: "Total Heat Loss", value: "1.82 kW", status: "OPTIMIZED", variant: "default" as const, sub: "Envelope Conductance" },
-    { label: "Solar Aperture Gain", value: "2.45 kW", status: "PEAK NOON", variant: "violet" as const, sub: "Passive Direct Gain" },
-    { label: "Autonomy to 16°C", value: "14.2 h", status: "RESILIENT", variant: "comfort" as const, sub: "Thermal Storage Buffer" },
-  ];
+  const result = useSimulationStore((state) => state.result);
+  const metrics = result
+    ? [
+        {
+          label: "Operative Temperature",
+          value: `${result.indoorTemperature[result.indoorTemperature.length - 1].toFixed(1)}°C`,
+          status: result.comfort.comfortRatio >= 0.8 ? "COMFORT" : "DISCOMFORT",
+          variant: "comfort" as const,
+          sub: `Peak ${Math.max(...result.indoorTemperature).toFixed(1)}°C`,
+        },
+        {
+          label: "Adaptive Comfort Hours",
+          value: `${result.comfort.comfortHours.toFixed(1)} h`,
+          status: `${Math.round((result.comfort.comfortHours / result.timeline.length) * 100)}%`,
+          variant: "comfort" as const,
+          sub: "ASHRAE 55 Target: ≥75%",
+        },
+        {
+          label: "Total Heat Loss",
+          value: `${result.heatLoss.reduce((a, b) => a + b, 0).toFixed(2)} kW`,
+          status: "OPTIMIZED",
+          variant: "default" as const,
+          sub: "Envelope Conductance",
+        },
+        {
+          label: "Solar Aperture Gain",
+          value: `${result.solarIrradiance.reduce((a, b) => a + b, 0).toFixed(2)} kW`,
+          status: "PEAK NOON",
+          variant: "violet" as const,
+          sub: "Passive Direct Gain",
+        },
+        {
+          label: "Autonomy to 16°C",
+          value: `${result.autonomy.toFixed(1)} h`,
+          status: "RESILIENT",
+          variant: "comfort" as const,
+          sub: "Thermal Storage Buffer",
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-6 w-full min-w-0">
@@ -70,7 +104,7 @@ export default function SimulationResultsPage() {
             <div className="text-center p-6 space-y-2">
               <p className="text-sm font-semibold text-slate-ink">24-Hour Thermal Curve Overlay</p>
               <p className="text-xs text-slate-muted">
-                Indoor Min: 18.2°C • Outdoor Min: -15.0°C • Diurnal Indoor Damping: 76.3%
+                Indoor Min: {result ? `${Math.min(...result.indoorTemperature).toFixed(1)}°C` : "18.2°C"} • Outdoor Min: {result ? `${Math.min(...result.outdoorTemperature).toFixed(1)}°C` : "-15.0°C"}
               </p>
             </div>
           </CardContent>
@@ -83,21 +117,22 @@ export default function SimulationResultsPage() {
           </CardHeader>
           <CardContent className="p-0 pt-2 space-y-4">
             <div className="h-6 w-full rounded-pill bg-warm-fog overflow-hidden flex">
-              <div className="bg-thermal-cold h-full" style={{ width: "18.7%" }} title="Under-comfort (4.5h)" />
-              <div className="bg-thermal-comfort h-full" style={{ width: "81.3%" }} title="Comfort (19.5h)" />
+              <div className="bg-thermal-cold h-full" style={{ width: result ? `${((result.comfort.underComfortHours / result.timeline.length) * 100).toFixed(1)}%` : "18.7%" }} title="Under-comfort" />
+              <div className="bg-thermal-comfort h-full" style={{ width: result ? `${((result.comfort.comfortHours / result.timeline.length) * 100).toFixed(1)}%` : "81.3%" }} title="Comfort" />
+              <div className="bg-thermal-hot h-full" style={{ width: result ? `${((result.comfort.overheatingHours / result.timeline.length) * 100).toFixed(1)}%` : "0%" }} title="Overheating" />
             </div>
             <div className="flex justify-between text-xs text-slate-muted">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-pill bg-thermal-cold" />
-                <span>Under-Comfort (&lt;18°C): 4.5 h</span>
+                <span>Under-Comfort (&lt;18°C): {result ? `${result.comfort.underComfortHours.toFixed(1)} h` : "4.5 h"}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-pill bg-thermal-comfort" />
-                <span>Comfort (18–26°C): 19.5 h</span>
+                <span>Comfort (18–26°C): {result ? `${result.comfort.comfortHours.toFixed(1)} h` : "19.5 h"}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-pill bg-thermal-hot" />
-                <span>Overheating (&gt;26°C): 0.0 h</span>
+                <span>Overheating (&gt;26°C): {result ? `${result.comfort.overheatingHours.toFixed(1)} h` : "0.0 h"}</span>
               </div>
             </div>
           </CardContent>

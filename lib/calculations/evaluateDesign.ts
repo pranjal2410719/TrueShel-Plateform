@@ -63,7 +63,6 @@ export function evaluateShelterDesign(
     useThermalMass,
     usePCM,
     useSolar,
-    useVentilation,
   } = config;
 
   const steps = Math.floor(durationHours / timeStepHours);
@@ -229,7 +228,7 @@ export function evaluateShelterDesign(
     thermalStates,
     heatFlowBreakdown,
     peakHeatLoss: Math.max(...heatLoss),
-    peakSolarGain: Math.max(...solarIrradiance.map((irr, idx) => estimateSolarGain(0.6, irr, design.openings.windowArea))),
+    peakSolarGain: Math.max(...solarIrradiance.map((irr) => estimateSolarGain(0.6, irr, design.openings.windowArea))),
     autonomy,
     risk,
     completedAt: new Date().toISOString(),

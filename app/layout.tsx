@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" nighteye="disabled">
+    <html lang="en">
       <body className="antialiased bg-canvas text-slate-ink min-h-screen overflow-x-hidden">
         {children}
       </body>

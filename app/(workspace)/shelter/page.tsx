@@ -1,19 +1,31 @@
 "use client";
-
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  Box,
-  Compass,
-  Save,
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Save, Compass } from "lucide-react";
+import ShelterModel from "@/components/visualization/ShelterModel";
+import { useShelterDesign, useShelterStore } from "@/stores/shelter-store";
+import type { Orientation, ShelterGeometry } from "@/types";
 
 export default function ShelterDesignerPage() {
   const [activeTab, setActiveTab] = useState("geometry");
+  // Store selectors
+  const design = useShelterDesign();
+  const setGeometry = useShelterStore((s) => s.updateGeometry);
+  const setOrientation = useShelterStore((s) => s.updateOrientation);
+  const saveDesign = useShelterStore((s) => s.saveDesign);
+
+  // Handlers for inputs
+  const handleChange = (field: keyof ShelterGeometry) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setGeometry({ [field]: value } as Partial<ShelterGeometry>);
+  };
+  const handleOrientation = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOrientation(e.target.value as Orientation);
+  };
 
   return (
     <div className="space-y-6 w-full min-w-0">
@@ -31,7 +43,7 @@ export default function ShelterDesignerPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="default" size="sm">
+          <Button variant="default" size="sm" onClick={() => saveDesign()}>
             <Save className="w-4 h-4 mr-1.5" />
             Save Design
           </Button>
@@ -49,17 +61,12 @@ export default function ShelterDesignerPage() {
                 <Badge variant="default">SCALE 1:1</Badge>
               </div>
               <CardDescription>
-                Real-time geometric response: L 6.0m × W 4.0m × H 2.8m.
+                Real-time geometric response.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 pt-2 flex-1 min-h-[360px] flex items-center justify-center bg-canvas rounded-inner">
-              <div className="text-center p-6 space-y-2">
-                <Box className="w-10 h-10 text-shop-violet mx-auto" />
-                <p className="text-sm font-semibold text-slate-ink">Procedural Shelter Geometry</p>
-                <p className="text-xs text-slate-muted max-w-xs">
-                  Oriented 180° South • Gabled Pitch 25° • Overhang 0.6m • 4 Cardinal Walls
-                </p>
-              </div>
+              {/* Render live ShelterModel */}
+              <ShelterModel design={design} mode="normal" />
             </CardContent>
           </Card>
 
@@ -98,21 +105,26 @@ export default function ShelterDesignerPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
                     <span className="text-xs text-slate-muted block">Length (m)</span>
-                    <span className="text-xl font-bold text-slate-ink">6.0 m</span>
+                    <input type="number" value={design.geometry.length} onChange={handleChange('length')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
                   </div>
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
                     <span className="text-xs text-slate-muted block">Width (m)</span>
-                    <span className="text-xl font-bold text-slate-ink">4.0 m</span>
+                    <input type="number" value={design.geometry.width} onChange={handleChange('width')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
                   </div>
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
                     <span className="text-xs text-slate-muted block">Wall Height (m)</span>
-                    <span className="text-xl font-bold text-slate-ink">2.8 m</span>
+                    <input type="number" value={design.geometry.height} onChange={handleChange('height')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
                   </div>
                 </div>
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle flex items-center justify-between">
                   <div>
                     <span className="text-xs text-slate-muted block">Orientation</span>
-                    <span className="text-sm font-semibold text-slate-ink">180° Due South (Optimal Solar Aperture)</span>
+                    <select value={design.orientation} onChange={handleOrientation} className="font-semibold text-slate-ink bg-transparent">
+                      <option value="north">North (0°)</option>
+                      <option value="east">East (90°)</option>
+                      <option value="south">South (180°)</option>
+                      <option value="west">West (270°)</option>
+                    </select>
                   </div>
                   <Compass className="w-5 h-5 text-shop-violet" />
                 </div>
@@ -125,17 +137,15 @@ export default function ShelterDesignerPage() {
                   <Badge variant="violet">R-2.42 m²·K/W</Badge>
                 </div>
                 <div className="space-y-2">
-                  {[
-                    { layer: "Exterior Lime Plaster", d: "20mm", k: "0.80 W/m·K" },
+                  {[{ layer: "Exterior Lime Plaster", d: "20mm", k: "0.80 W/m·K" },
                     { layer: "Straw-Clay Insulation", d: "100mm", k: "0.08 W/m·K" },
                     { layer: "Rammed Earth Structural Core", d: "300mm", k: "1.10 W/m·K" },
-                    { layer: "Interior Mud Render", d: "15mm", k: "0.75 W/m·K" },
-                  ].map((l, i) => (
-                    <div key={i} className="p-3 rounded-inner bg-canvas border border-border-subtle flex items-center justify-between text-xs">
-                      <span className="font-medium text-slate-ink">{l.layer}</span>
-                      <span className="text-slate-muted">{l.d} • k={l.k}</span>
-                    </div>
-                  ))}
+                    { layer: "Interior Mud Render", d: "15mm", k: "0.75 W/m·K" }].map((l, i) => (
+                      <div key={i} className="p-3 rounded-inner bg-canvas border border-border-subtle flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-ink">{l.layer}</span>
+                        <span className="text-slate-muted">{l.d} • k={l.k}</span>
+                      </div>
+                    ))}
                 </div>
               </TabsContent>
 
@@ -158,7 +168,7 @@ export default function ShelterDesignerPage() {
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-muted">South Glazing Area:</span>
-                    <span className="font-semibold text-slate-ink">4.8 m² (20% WWR)</span>
+                    <span className="font-semibold text-slate-ink">{design.openings.windowArea} m² ({(design.openings.windowArea / (design.geometry.length * design.geometry.width) * 100).toFixed(1)}% WWR)</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-muted">Glazing Type:</span>
@@ -171,8 +181,8 @@ export default function ShelterDesignerPage() {
               <TabsContent value="thermal-mass" className="space-y-4 pt-4">
                 <h3 className="text-sm font-semibold text-slate-ink">Thermal Storage Mass</h3>
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle text-xs space-y-1">
-                  <p className="font-medium text-slate-ink">Total Capacitance: 18.4 MJ/K</p>
-                  <p className="text-slate-muted">Direct gain floor slab + 300mm South Trombe wall.</p>
+                  <p className="font-medium text-slate-ink">Thermal Mass Level: {design.thermalMass.level.toUpperCase()} ({design.thermalMass.material})</p>
+                  <p className="text-slate-muted">Direct gain floor slab + {design.thermalMass.thickness}mm South Trombe wall.</p>
                 </div>
               </TabsContent>
 
@@ -180,8 +190,8 @@ export default function ShelterDesignerPage() {
               <TabsContent value="pcm" className="space-y-4 pt-4">
                 <h3 className="text-sm font-semibold text-slate-ink">Bio-Based Phase Change Materials</h3>
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle text-xs space-y-1">
-                  <p className="font-medium text-slate-ink">BioPCM Q21 Integration</p>
-                  <p className="text-slate-muted">Melting point: 21°C • Latent heat: 180 kJ/kg • Stabilizes indoor peak temperatures.</p>
+                  <p className="font-medium text-slate-ink">{design.pcm.enabled ? "Enabled" : "Disabled"} BioPCM Q21 Integration</p>
+                  <p className="text-slate-muted">Melting point: {design.pcm.meltingPoint ?? '—'}°C • Latent heat: {design.pcm.latentHeat ?? '—'} kJ/kg • Thickness: {design.pcm.thickness ?? '—'} mm.</p>
                 </div>
               </TabsContent>
 
@@ -190,12 +200,12 @@ export default function ShelterDesignerPage() {
                 <h3 className="text-sm font-semibold text-slate-ink">Aggregate Thermal Performance</h3>
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 rounded-inner bg-canvas border border-border-subtle">
-                    <span className="text-slate-muted block">Overall Area-Weighted U:</span>
-                    <span className="font-bold text-slate-ink text-sm">0.44 W/m²·K</span>
+                    <span className="text-slate-muted block">Wall Assembly U-Value:</span>
+                    <span className="font-bold text-slate-ink text-sm">{design.envelope.wall.uValue.toFixed(2)} W/m²·K</span>
                   </div>
                   <div className="p-3 rounded-inner bg-canvas border border-border-subtle">
-                    <span className="text-slate-muted block">Total Envelope Heat Loss:</span>
-                    <span className="font-bold text-slate-ink text-sm">1.82 kW</span>
+                    <span className="text-slate-muted block">Roof Assembly U-Value:</span>
+                    <span className="font-bold text-slate-ink text-sm">{design.envelope.roof.uValue.toFixed(2)} W/m²·K</span>
                   </div>
                 </div>
               </TabsContent>

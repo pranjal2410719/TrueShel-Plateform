@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useSimulationStore } from "@/stores/simulation-store";
 
 export default function SimulationSetupPage() {
   const router = useRouter();
@@ -16,7 +17,9 @@ export default function SimulationSetupPage() {
   const [ventilationEnabled, setVentilationEnabled] = useState(false);
 
   const handleRun = () => {
-    router.push("/simulation/running");
+    const { runSimulation } = useSimulationStore.getState();
+    runSimulation();
+    router.push("/simulation/results");
   };
 
   return (

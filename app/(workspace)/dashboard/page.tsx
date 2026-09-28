@@ -12,7 +12,6 @@ import {
   TrendingUp,
   Box,
   MapPin,
-  Wind,
   Mountain,
   Package,
 } from "lucide-react";
@@ -285,8 +284,8 @@ export default function DashboardPage() {
                     {/* Comfort band 18–26°C — map to SVG coords */}
                     <defs>
                       <linearGradient id="comfortGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22c55e" stopOpacity="0.12" />
-                        <stop offset="100%" stopColor="#22c55e" stopOpacity="0.04" />
+                        <stop offset="0%" stopColor="var(--color-thermal-comfort)" stopOpacity="0.12" />
+                        <stop offset="100%" stopColor="var(--color-thermal-comfort)" stopOpacity="0.04" />
                       </linearGradient>
                     </defs>
                     {/* Comfort band */}
@@ -294,7 +293,7 @@ export default function DashboardPage() {
                     {/* Outdoor temperature line */}
                     <polyline
                       fill="none"
-                      stroke="#94a3b8"
+                      stroke="var(--color-slate-subtle)"
                       strokeWidth="1.5"
                       strokeDasharray="4 3"
                       points={result.outdoorTemperature.map((t, i) => {
@@ -306,7 +305,7 @@ export default function DashboardPage() {
                     {/* Indoor temperature line */}
                     <polyline
                       fill="none"
-                      stroke="#5433eb"
+                      stroke="var(--color-shop-violet)"
                       strokeWidth="2"
                       points={result.indoorTemperature.map((t, i) => {
                         const x = (i / 23) * 480;

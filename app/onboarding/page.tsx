@@ -20,7 +20,9 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 import { LADAKH_CLIMATE } from "@/lib/mock/repository";
 
 // ── Mock climate fetch (replace with real API in production) ───────────────
-function fetchClimateForLocation(_lat: number, _lng: number) {
+function fetchClimateForLocation(lat?: number, lng?: number) {
+  void lat;
+  void lng;
   return new Promise<typeof LADAKH_CLIMATE>((resolve) =>
     setTimeout(() => resolve(LADAKH_CLIMATE), 2000)
   );
@@ -194,7 +196,7 @@ export default function OnboardingPage() {
               <CardHeader className="p-0">
                 <CardTitle>Your Location</CardTitle>
                 <CardDescription>
-                  We'll fetch local climate conditions, altitude, and environmental risk factors for your site.
+                  We&apos;ll fetch local climate conditions, altitude, and environmental risk factors for your site.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 space-y-4">
@@ -290,7 +292,7 @@ export default function OnboardingPage() {
               <CardHeader className="p-0">
                 <div className="flex items-center gap-2 mb-1">
                   <Package className="w-4 h-4 text-shop-violet" />
-                  <CardTitle>What's in Your Pack?</CardTitle>
+                  <CardTitle>What&apos;s in Your Pack?</CardTitle>
                 </div>
                 {locationLabel && (
                   <Badge variant="violet" className="self-start">{locationLabel}</Badge>

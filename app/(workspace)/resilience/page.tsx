@@ -4,16 +4,14 @@
 
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import {
-  ShieldAlert,
   Clock,
   Snowflake,
   Wind,
   ArrowRight,
   TrendingDown,
-  TrendingUp,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
