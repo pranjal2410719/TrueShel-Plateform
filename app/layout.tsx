@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-canvas text-slate-ink min-h-screen overflow-x-hidden">
+      <body className="antialiased bg-canvas text-slate-ink min-h-screen overflow-x-hidden pt-16">
         {children}
       </body>
     </html>

@@ -51,7 +51,6 @@ export function AppShell({ children }: AppShellProps) {
             "flex-1 min-w-0 w-full transition-[margin-left] duration-200 ease-in-out",
             "px-4 sm:px-6 lg:px-8 py-6",
             "pb-24 md:pb-10",
-            "pt-16",
             sidebarExpanded ? "md:ml-60" : "md:ml-16"
           )}
         >
