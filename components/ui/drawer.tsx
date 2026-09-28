@@ -36,6 +36,22 @@ export function Drawer({
     [isControlled, onOpenChange]
   );
 
+  // Escape closes the drawer; background scroll locked while open so the
+  // page behind a bottom sheet cannot scroll underneath it.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleOpenChange(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, handleOpenChange]);
+
   return (
     <DrawerContext.Provider value={{ open: isOpen, onOpenChange: handleOpenChange }}>
       {children}
@@ -97,13 +113,17 @@ export function DrawerContent({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-ink/40 transition-opacity"
+        className="fixed inset-0 bg-slate-ink/40 animate-in fade-in-0"
         onClick={() => context.onOpenChange(false)}
       />
-      {/* Drawer Surface */}
+      {/* Drawer Surface — slides in from its edge instead of popping in place */}
       <div
+        role="dialog"
+        aria-modal="true"
         className={cn(
-          "fixed z-50 bg-surface p-6 shadow-card border-none text-slate-ink transition-transform duration-300 ease-in-out overflow-y-auto",
+          "fixed z-50 bg-surface p-6 shadow-card border-none text-slate-ink overflow-y-auto animate-in",
+          (side === "bottom" || side === "top") && "animate-slide-in-bottom",
+          (side === "right" || side === "left") && "animate-slide-in-right",
           sideClasses[side],
           className
         )}

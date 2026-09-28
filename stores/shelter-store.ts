@@ -72,15 +72,27 @@ export const useShelterStore = create<ShelterStoreState>()(
       isDirty: false,
 
       // --- Geometry ---
+      // Drop non-finite / non-positive values so a bad input (or a NaN
+      // persisted by an older version) can never poison the 3D model or
+      // downstream calculations.
       updateGeometry: (patch) =>
-        set((state) => ({
-          isDirty: true,
-          design: {
-            ...state.design,
-            geometry: { ...state.design.geometry, ...patch },
-            updatedAt: new Date().toISOString(),
-          },
-        })),
+        set((state) => {
+          const clean: Partial<ShelterGeometry> = {};
+          for (const [key, value] of Object.entries(patch)) {
+            if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+              (clean as Record<string, number>)[key] = value;
+            }
+          }
+          if (Object.keys(clean).length === 0) return state;
+          return {
+            isDirty: true,
+            design: {
+              ...state.design,
+              geometry: { ...state.design.geometry, ...clean },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        }),
 
       // --- Orientation ---
       updateOrientation: (orientation) =>

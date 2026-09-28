@@ -65,6 +65,9 @@
   --font-sans: "GT Standard", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
+  /* Breakpoints — xs fills the gap between base (0) and sm (640) for micro-layouts */
+  --breakpoint-xs: 400px;
+
   /* Tracking (Letter Spacing) */
   --tracking-tighter: -0.04em;
   --tracking-tight: -0.02em;

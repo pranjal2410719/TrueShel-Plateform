@@ -18,14 +18,22 @@ export default function ShelterDesignerPage() {
   const setOrientation = useShelterStore((s) => s.updateOrientation);
   const saveDesign = useShelterStore((s) => s.saveDesign);
 
-  // Handlers for inputs
+  // Handlers for inputs — clearing a number field yields "" → parseFloat →
+  // NaN, which previously flowed straight into the store and broke the 3D
+  // model (NaN geometry) and every downstream calculation. Ignore invalid /
+  // non-positive input and clamp to sane engineering bounds.
   const handleChange = (field: keyof ShelterGeometry) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    setGeometry({ [field]: value } as Partial<ShelterGeometry>);
+    if (Number.isNaN(value) || value <= 0) return;
+    const clamped = Math.min(value, 100);
+    setGeometry({ [field]: clamped } as Partial<ShelterGeometry>);
   };
   const handleOrientation = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setOrientation(e.target.value as Orientation);
   };
+
+  const numberInputClass =
+    "w-full mt-1 text-xl font-bold text-slate-ink bg-transparent rounded-sm-tok px-1 -mx-1 focus:outline-none focus:ring-2 focus:ring-shop-violet-subtle focus:bg-surface transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
   return (
     <div className="space-y-6 w-full min-w-0">
@@ -104,22 +112,22 @@ export default function ShelterDesignerPage() {
                 <h3 className="text-sm font-semibold text-slate-ink">Dimensions & Orientation</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
-                    <span className="text-xs text-slate-muted block">Length (m)</span>
-                    <input type="number" value={design.geometry.length} onChange={handleChange('length')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
+                    <label htmlFor="geo-length" className="text-xs text-slate-muted block">Length (m)</label>
+                    <input id="geo-length" type="number" min={1} max={100} step={0.1} value={design.geometry.length} onChange={handleChange('length')} className={numberInputClass} />
                   </div>
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
-                    <span className="text-xs text-slate-muted block">Width (m)</span>
-                    <input type="number" value={design.geometry.width} onChange={handleChange('width')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
+                    <label htmlFor="geo-width" className="text-xs text-slate-muted block">Width (m)</label>
+                    <input id="geo-width" type="number" min={1} max={100} step={0.1} value={design.geometry.width} onChange={handleChange('width')} className={numberInputClass} />
                   </div>
                   <div className="p-4 rounded-inner bg-canvas border border-border-subtle">
-                    <span className="text-xs text-slate-muted block">Wall Height (m)</span>
-                    <input type="number" value={design.geometry.height} onChange={handleChange('height')} className="w-full mt-1 text-xl font-bold text-slate-ink bg-transparent" />
+                    <label htmlFor="geo-height" className="text-xs text-slate-muted block">Wall Height (m)</label>
+                    <input id="geo-height" type="number" min={1} max={100} step={0.1} value={design.geometry.height} onChange={handleChange('height')} className={numberInputClass} />
                   </div>
                 </div>
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle flex items-center justify-between">
                   <div>
-                    <span className="text-xs text-slate-muted block">Orientation</span>
-                    <select value={design.orientation} onChange={handleOrientation} className="font-semibold text-slate-ink bg-transparent">
+                    <label htmlFor="geo-orientation" className="text-xs text-slate-muted block">Orientation</label>
+                    <select id="geo-orientation" value={design.orientation} onChange={handleOrientation} className="font-semibold text-slate-ink bg-transparent rounded-sm-tok px-1 -mx-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-shop-violet-subtle cursor-pointer">
                       <option value="north">North (0°)</option>
                       <option value="east">East (90°)</option>
                       <option value="south">South (180°)</option>
@@ -166,9 +174,17 @@ export default function ShelterDesignerPage() {
               <TabsContent value="openings" className="space-y-4 pt-4">
                 <h3 className="text-sm font-semibold text-slate-ink">Glazing & Apertures</h3>
                 <div className="p-4 rounded-inner bg-canvas border border-border-subtle space-y-2 text-xs">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2 flex-wrap">
                     <span className="text-slate-muted">South Glazing Area:</span>
-                    <span className="font-semibold text-slate-ink">{design.openings.windowArea} m² ({(design.openings.windowArea / (design.geometry.length * design.geometry.width) * 100).toFixed(1)}% WWR)</span>
+                    <span className="font-semibold text-slate-ink">
+                      {design.openings.windowArea} m² (
+                      {(() => {
+                        const floorArea = design.geometry.length * design.geometry.width;
+                        return floorArea > 0 && Number.isFinite(floorArea)
+                          ? `${((design.openings.windowArea / floorArea) * 100).toFixed(1)}% of floor area`
+                          : "—";
+                      })()})
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-muted">Glazing Type:</span>

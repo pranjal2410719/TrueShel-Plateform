@@ -131,6 +131,55 @@ export default function DashboardPage() {
       ]
     : [];
 
+  // ── Chart geometry: data-driven temperature scale + correct comfort band ──
+  // The previous version drew a hardcoded rect (y=40 h=67) that rendered the
+  // "18–26°C comfort band" as roughly −3.5–30°C, and fixed the axis to 0–40°C.
+  const chart = useMemo(() => {
+    if (!result) return null;
+    const W = 480;
+    const H = 200;
+    const PAD_LEFT = 34;
+    const PAD_RIGHT = 8;
+    const PAD_TOP = 8;
+    const PAD_BOTTOM = 22;
+    const comfortMin = 18;
+    const comfortMax = 26;
+
+    const temps = [...result.indoorTemperature, ...result.outdoorTemperature];
+    if (temps.length === 0) return null;
+    const dataMin = Math.min(...temps);
+    const dataMax = Math.max(...temps);
+    // Pad range, and always include the comfort band so it is visible.
+    const lo = Math.min(dataMin, comfortMin) - 2;
+    const hi = Math.max(dataMax, comfortMax) + 2;
+    const span = hi - lo || 1;
+
+    const plotW = W - PAD_LEFT - PAD_RIGHT;
+    const plotH = H - PAD_TOP - PAD_BOTTOM;
+    // SVG y grows downward; invert the temperature scale.
+    const scaleY = (t: number) => PAD_TOP + ((hi - t) / span) * plotH;
+    const scaleX = (i: number, n: number) => PAD_LEFT + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
+
+    const linePoints = (arr: number[]) =>
+      arr.map((t, i) => `${scaleX(i, arr.length).toFixed(1)},${scaleY(t).toFixed(1)}`).join(" ");
+
+    // Y-axis ticks: comfort bounds + data extremes, deduplicated.
+    const yTicks = Array.from(new Set([lo + 1, comfortMin, comfortMax, hi - 1].map((v) => Math.round(v))));
+    const xTicks = [0, 6, 12, 18, result.indoorTemperature.length - 1];
+
+    return {
+      W, H, PAD_LEFT, PAD_RIGHT, plotW,
+      comfortY: scaleY(comfortMax),
+      comfortH: Math.max(scaleY(comfortMin) - scaleY(comfortMax), 1),
+      indoorPoints: linePoints(result.indoorTemperature),
+      outdoorPoints: linePoints(result.outdoorTemperature),
+      yTicks: yTicks.map((t) => ({ t, y: scaleY(t) })),
+      xTicks: Array.from(new Set(xTicks)).map((i) => ({ i, x: scaleX(i, result.indoorTemperature.length) })),
+      gridX: PAD_LEFT,
+      gridRight: PAD_LEFT + plotW,
+    };
+  }, [result]);
+
   // ── Insights derived from supplies ────────────────────────────────────────
   const supplyInsights = useMemo(() => {
     const insights: { title: string; desc: string }[] = [];
@@ -276,43 +325,83 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0 pt-2 flex-1 min-h-[260px] sm:min-h-[300px] bg-canvas rounded-inner overflow-hidden">
-            {result ? (
+            {result && chart ? (
               <div className="w-full h-full flex flex-col p-4 gap-2">
-                {/* Lightweight SVG chart (no external dependency needed for the bar) */}
-                <div className="flex-1 relative">
-                  <svg viewBox="0 0 480 200" className="w-full h-full" preserveAspectRatio="none">
-                    {/* Comfort band 18–26°C — map to SVG coords */}
+                <div className="flex-1 relative min-h-0">
+                  <svg
+                    viewBox={`0 0 ${chart.W} ${chart.H}`}
+                    className="w-full h-full"
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label="24-hour indoor versus outdoor temperature with 18 to 26 degree Celsius comfort band"
+                  >
+                    {/* Comfort band 18–26°C — positioned from the data scale */}
                     <defs>
                       <linearGradient id="comfortGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="var(--color-thermal-comfort)" stopOpacity="0.12" />
                         <stop offset="100%" stopColor="var(--color-thermal-comfort)" stopOpacity="0.04" />
                       </linearGradient>
                     </defs>
-                    {/* Comfort band */}
-                    <rect x="0" y="40" width="480" height="67" fill="url(#comfortGrad)" />
+                    <rect
+                      x={chart.gridX}
+                      y={chart.comfortY}
+                      width={chart.plotW}
+                      height={chart.comfortH}
+                      fill="url(#comfortGrad)"
+                    />
+
+                    {/* Horizontal grid lines + temperature labels */}
+                    {chart.yTicks.map(({ t, y }) => (
+                      <g key={`y-${t}`}>
+                        <line
+                          x1={chart.gridX}
+                          x2={chart.gridRight}
+                          y1={y}
+                          y2={y}
+                          stroke="var(--color-border-subtle)"
+                          strokeWidth="0.5"
+                        />
+                        <text
+                          x={chart.gridX - 4}
+                          y={y + 3}
+                          textAnchor="end"
+                          fontSize="8"
+                          fill="var(--color-slate-muted)"
+                        >
+                          {t}°
+                        </text>
+                      </g>
+                    ))}
+
                     {/* Outdoor temperature line */}
                     <polyline
                       fill="none"
                       stroke="var(--color-slate-subtle)"
                       strokeWidth="1.5"
                       strokeDasharray="4 3"
-                      points={result.outdoorTemperature.map((t, i) => {
-                        const x = (i / 23) * 480;
-                        const y = 100 - (t / 40) * 80; // rough scale
-                        return `${x},${y}`;
-                      }).join(" ")}
+                      points={chart.outdoorPoints}
                     />
                     {/* Indoor temperature line */}
                     <polyline
                       fill="none"
                       stroke="var(--color-shop-violet)"
                       strokeWidth="2"
-                      points={result.indoorTemperature.map((t, i) => {
-                        const x = (i / 23) * 480;
-                        const y = 100 - (t / 40) * 80;
-                        return `${x},${y}`;
-                      }).join(" ")}
+                      points={chart.indoorPoints}
                     />
+
+                    {/* Hour labels */}
+                    {chart.xTicks.map(({ i, x }) => (
+                      <text
+                        key={`x-${i}`}
+                        x={x}
+                        y={chart.H - 6}
+                        textAnchor={i === 0 ? "start" : i === 23 ? "end" : "middle"}
+                        fontSize="8"
+                        fill="var(--color-slate-muted)"
+                      >
+                        {String(i).padStart(2, "0")}:00
+                      </text>
+                    ))}
                   </svg>
                 </div>
                 {/* Legend */}
@@ -321,7 +410,7 @@ export default function DashboardPage() {
                     <span className="w-5 h-0.5 bg-shop-violet inline-block" /> Indoor
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="w-5 h-0.5 bg-slate-300 inline-block border-dashed border-t" /> Outdoor
+                    <span className="w-5 h-0.5 bg-slate-subtle inline-block" /> Outdoor
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-4 h-3 rounded-sm bg-thermal-comfort/20 border border-thermal-comfort/30 inline-block" /> Comfort 18–26°C

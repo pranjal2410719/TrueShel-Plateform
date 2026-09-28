@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -11,15 +11,15 @@ import { useSimulationStore } from "@/stores/simulation-store";
 
 export default function SimulationSetupPage() {
   const router = useRouter();
-  const [pcmEnabled, setPcmEnabled] = useState(true);
-  const [thermalMassEnabled, setThermalMassEnabled] = useState(true);
-  const [solarEnabled, setSolarEnabled] = useState(true);
-  const [ventilationEnabled, setVentilationEnabled] = useState(false);
+  // Toggles are wired to the real store configuration so the solver honours
+  // them. Previously they were local state that Execute Simulation ignored.
+  const configuration = useSimulationStore((s) => s.configuration);
+  const setConfiguration = useSimulationStore((s) => s.setConfiguration);
 
   const handleRun = () => {
-    const { runSimulation } = useSimulationStore.getState();
-    runSimulation();
-    router.push("/simulation/results");
+    // Navigate first: the running page starts the run and redirects to
+    // results with real progress instead of a fire-and-forget race.
+    router.push("/simulation/running");
   };
 
   return (
@@ -86,7 +86,11 @@ export default function SimulationSetupPage() {
                 <span className="font-semibold text-slate-ink block">Thermal Mass Capacitance</span>
                 <span className="text-slate-muted">Internal wall & slab flywheel storage</span>
               </div>
-              <Switch checked={thermalMassEnabled} onCheckedChange={setThermalMassEnabled} />
+              <Switch
+                checked={configuration.useThermalMass}
+                onCheckedChange={(v) => setConfiguration({ useThermalMass: v })}
+                aria-label="Toggle thermal mass capacitance"
+              />
             </div>
 
             <div className="p-3 rounded-inner bg-canvas border border-border-subtle flex justify-between items-center">
@@ -94,7 +98,11 @@ export default function SimulationSetupPage() {
                 <span className="font-semibold text-slate-ink block">Phase Change Material (PCM)</span>
                 <span className="text-slate-muted">BioPCM latent enthalpy buffering</span>
               </div>
-              <Switch checked={pcmEnabled} onCheckedChange={setPcmEnabled} />
+              <Switch
+                checked={configuration.usePCM}
+                onCheckedChange={(v) => setConfiguration({ usePCM: v })}
+                aria-label="Toggle phase change material"
+              />
             </div>
 
             <div className="p-3 rounded-inner bg-canvas border border-border-subtle flex justify-between items-center">
@@ -102,7 +110,11 @@ export default function SimulationSetupPage() {
                 <span className="font-semibold text-slate-ink block">Solar Ray-Tracing & Transmittance</span>
                 <span className="text-slate-muted">Clear-sky solar radiation through south aperture</span>
               </div>
-              <Switch checked={solarEnabled} onCheckedChange={setSolarEnabled} />
+              <Switch
+                checked={configuration.useSolar}
+                onCheckedChange={(v) => setConfiguration({ useSolar: v })}
+                aria-label="Toggle solar ray tracing"
+              />
             </div>
 
             <div className="p-3 rounded-inner bg-canvas border border-border-subtle flex justify-between items-center">
@@ -110,7 +122,11 @@ export default function SimulationSetupPage() {
                 <span className="font-semibold text-slate-ink block">Nighttime Natural Flush Ventilation</span>
                 <span className="text-slate-muted">High-rate night purge ventilation</span>
               </div>
-              <Switch checked={ventilationEnabled} onCheckedChange={setVentilationEnabled} />
+              <Switch
+                checked={configuration.useVentilation}
+                onCheckedChange={(v) => setConfiguration({ useVentilation: v })}
+                aria-label="Toggle nighttime flush ventilation"
+              />
             </div>
           </CardContent>
         </Card>

@@ -8,6 +8,8 @@
 
 import { create } from 'zustand';
 import { LADAKH_SIMULATION_RESULT } from '@/lib/mock/repository';
+import { evaluateShelterDesign } from '@/lib/calculations/evaluateDesign';
+import { useShelterStore } from '@/stores/shelter-store';
 import type {
   SimulationConfiguration,
   SimulationResult,
@@ -62,7 +64,7 @@ const SEEDED_STATE: SimulationState = {
 // Store
 // ---------------------------------------------------------------------------
 
-export const useSimulationStore = create<SimulationStoreState>()((set) => ({
+export const useSimulationStore = create<SimulationStoreState>()((set, get) => ({
   ...SEEDED_STATE,
 
   setConfiguration: (patch) =>
@@ -112,20 +114,37 @@ export const useSimulationStore = create<SimulationStoreState>()((set) => ({
       result: null,
       configuration: DEFAULT_CONFIGURATION,
     }),
-  // Run the full simulation using current design and config
+  // Run the full simulation using current design and config.
+  // NOTE: the previous implementation called the React selector hook
+  // useShelterDesign() outside of a component, which throws an invalid
+  // hook-call error at runtime. Hooks must never be used here — read the
+  // store directly via getState() instead.
   runSimulation: async () => {
-    // set running state
-    set((state) => ({
+    set({
       status: 'running' as SimulationStatus,
       progress: 0,
-      currentStep: 'Evaluating design…',
+      currentStep: 'Validating climate boundary conditions…',
       error: null,
-    }));
+    });
     try {
-      const { evaluateShelterDesign } = await import('@/lib/calculations/evaluateDesign');
-      const { useShelterDesign } = await import('@/stores/shelter-store');
-      const design = useShelterDesign();
-      const config = (await import('@/stores/simulation-store')).useSimulationStore.getState().configuration;
+      const design = useShelterStore.getState().design;
+      const config = get().configuration;
+
+      // Report staged progress so the running view reflects real phases
+      // instead of an independent fake timer.
+      const stages: Array<[number, string]> = [
+        [20, 'Meshing procedural shelter geometry & orientation'],
+        [40, 'Computing ISO 6946 multi-layer thermal resistances'],
+        [60, 'Integrating thermal mass & BioPCM enthalpy state'],
+        [80, 'Solving 24-hour transient temperature matrix'],
+        [90, 'Evaluating ASHRAE 55 adaptive comfort & autonomy'],
+      ];
+      for (const [progress, stepLabel] of stages) {
+        set({ progress, currentStep: stepLabel });
+        // Yield between stages so the UI can paint each phase.
+        await new Promise((resolve) => setTimeout(resolve, 180));
+      }
+
       const result = evaluateShelterDesign(design, undefined, config);
       set({
         status: 'complete' as SimulationStatus,
@@ -137,7 +156,7 @@ export const useSimulationStore = create<SimulationStoreState>()((set) => ({
     } catch (e: any) {
       set({
         status: 'error' as SimulationStatus,
-        error: e.message ?? 'Simulation failed',
+        error: e?.message ?? 'Simulation failed',
         currentStep: null,
       });
     }

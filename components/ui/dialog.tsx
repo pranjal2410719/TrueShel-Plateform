@@ -36,6 +36,22 @@ export function Dialog({
     [isControlled, onOpenChange]
   );
 
+  // Escape closes the dialog; background scroll is locked while open so
+  // the page behind a modal cannot drift. (Neither existed before.)
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleOpenChange(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, handleOpenChange]);
+
   return (
     <DialogContext.Provider value={{ open: isOpen, onOpenChange: handleOpenChange }}>
       {children}

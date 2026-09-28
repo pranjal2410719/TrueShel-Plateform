@@ -35,8 +35,13 @@ export default function OnboardingGuard({ children }: { children: React.ReactNod
   // Show a minimal full-screen loader while hydrating or redirecting
   if (!hydrated || !isReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas">
-        <Loader2 className="animate-spin text-shop-violet" size={36} />
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-screen items-center justify-center bg-canvas"
+      >
+        <Loader2 className="animate-spin text-shop-violet" size={36} aria-hidden="true" />
+        <span className="sr-only">Preparing your workspace…</span>
       </div>
     );
   }

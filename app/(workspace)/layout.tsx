@@ -9,7 +9,7 @@ export default function WorkspaceLayout({
 }) {
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden">
-<OnboardingGuard>
+      <OnboardingGuard>
         <AppShell>{children}</AppShell>
       </OnboardingGuard>
     </div>

@@ -5,46 +5,73 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Database, Play } from "lucide-react";
 import { useSimulationStore } from "@/stores/simulation-store";
 
 export default function SimulationResultsPage() {
   const result = useSimulationStore((state) => state.result);
+
   const metrics = result
     ? [
         {
           label: "Operative Temperature",
           value: `${result.indoorTemperature[result.indoorTemperature.length - 1].toFixed(1)}°C`,
-          status: result.comfort.comfortRatio >= 0.8 ? "COMFORT" : "DISCOMFORT",
-          variant: "comfort" as const,
+          // Status derived from the ACTUAL last-hour temperature against the
+          // comfort band — previously the label could say DISCOMFORT while
+          // wearing a green comfort badge.
+          status:
+            result.indoorTemperature[result.indoorTemperature.length - 1] >= 18 &&
+            result.indoorTemperature[result.indoorTemperature.length - 1] <= 26
+              ? "COMFORT"
+              : result.indoorTemperature[result.indoorTemperature.length - 1] < 18
+              ? "UNDER-COMFORT"
+              : "OVERHEATING",
+          variant:
+            result.indoorTemperature[result.indoorTemperature.length - 1] >= 18 &&
+            result.indoorTemperature[result.indoorTemperature.length - 1] <= 26
+              ? ("comfort" as const)
+              : ("error" as const),
           sub: `Peak ${Math.max(...result.indoorTemperature).toFixed(1)}°C`,
         },
         {
           label: "Adaptive Comfort Hours",
           value: `${result.comfort.comfortHours.toFixed(1)} h`,
           status: `${Math.round((result.comfort.comfortHours / result.timeline.length) * 100)}%`,
-          variant: "comfort" as const,
+          variant:
+            result.comfort.comfortRatio >= 0.75
+              ? ("comfort" as const)
+              : result.comfort.comfortRatio >= 0.5
+              ? ("warn" as const)
+              : ("error" as const),
           sub: "ASHRAE 55 Target: ≥75%",
         },
         {
           label: "Total Heat Loss",
-          value: `${result.heatLoss.reduce((a, b) => a + b, 0).toFixed(2)} kW`,
-          status: "OPTIMIZED",
+          // heatLoss is kW per hourly step; summing 24 steps gives kWh.
+          value: `${result.heatLoss.reduce((a, b) => a + b, 0).toFixed(2)} kWh`,
+          status: `${result.peakHeatLoss.toFixed(1)} kW peak`,
           variant: "default" as const,
           sub: "Envelope Conductance",
         },
         {
           label: "Solar Aperture Gain",
-          value: `${result.solarIrradiance.reduce((a, b) => a + b, 0).toFixed(2)} kW`,
-          status: "PEAK NOON",
+          // heatGain is the SHGC-weighed kW through the glazing (the raw
+          // solarIrradiance array is W/m² and could not be summed as kW).
+          value: `${result.heatGain.reduce((a, b) => a + b, 0).toFixed(2)} kWh`,
+          status: `${result.peakSolarGain.toFixed(1)} kW peak`,
           variant: "violet" as const,
           sub: "Passive Direct Gain",
         },
         {
           label: "Autonomy to 16°C",
           value: `${result.autonomy.toFixed(1)} h`,
-          status: "RESILIENT",
-          variant: "comfort" as const,
+          status: result.autonomy >= 12 ? "RESILIENT" : result.autonomy >= 8 ? "AT RISK" : "CRITICAL",
+          variant:
+            result.autonomy >= 12
+              ? ("comfort" as const)
+              : result.autonomy >= 8
+              ? ("warn" as const)
+              : ("error" as const),
           sub: "Thermal Storage Buffer",
         },
       ]
@@ -55,11 +82,15 @@ export default function SimulationResultsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-bold tracking-tight text-slate-ink">
               Simulation Results Dashboard
             </h1>
-            <Badge variant="comfort">SOLVER CONVERGED</Badge>
+            {result ? (
+              <Badge variant="comfort">SOLVER CONVERGED</Badge>
+            ) : (
+              <Badge variant="outline">NO RUN YET</Badge>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-slate-muted">
             High-altitude transient simulation output: 24h temperature trajectories, heat flux dynamics, and comfort metrics.
@@ -79,65 +110,102 @@ export default function SimulationResultsPage() {
         </div>
       </div>
 
-      {/* 5-Metric Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {metrics.map((m) => (
-          <Card key={m.label} className="p-5">
-            <span className="text-xs font-medium text-slate-muted block mb-2">{m.label}</span>
-            <p className="text-2xl font-bold tracking-tighter text-slate-ink">{m.value}</p>
-            <div className="mt-2 flex items-center justify-between">
-              <Badge variant={m.variant}>{m.status}</Badge>
-              <span className="text-[11px] text-slate-muted">{m.sub}</span>
+      {/* Empty state — previously an empty grid with a misleading
+          "SOLVER CONVERGED" badge and hardcoded fallback numbers. */}
+      {!result && (
+        <Card className="p-8">
+          <div className="text-center space-y-3 max-w-md mx-auto">
+            <div className="w-12 h-12 rounded-pill bg-warm-fog/60 flex items-center justify-center mx-auto">
+              <Database className="w-6 h-6 text-slate-muted" />
             </div>
-          </Card>
-        ))}
-      </div>
+            <p className="text-sm font-semibold text-slate-ink">
+              No simulation results yet
+            </p>
+            <p className="text-xs text-slate-muted">
+              Run the transient solver to generate 24-hour temperature
+              trajectories, heat flux dynamics, and comfort metrics for your
+              current shelter design.
+            </p>
+            <Link href="/simulation/running">
+              <Button size="sm">
+                <Play className="w-4 h-4 mr-1.5 fill-surface text-surface" />
+                Run Simulation
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
+      {/* 5-Metric Strip */}
+      {result && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {metrics.map((m) => (
+            <Card key={m.label} className="p-5">
+              <span className="text-xs font-medium text-slate-muted block mb-2">{m.label}</span>
+              <p className="text-2xl font-bold tracking-tighter text-slate-ink">{m.value}</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <Badge variant={m.variant}>{m.status}</Badge>
+                <span className="text-[11px] text-slate-muted text-right">{m.sub}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Visualizers Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <CardHeader className="p-0 pb-4">
-            <CardTitle>Indoor vs Outdoor 24h Temperature</CardTitle>
-            <CardDescription>Indoor operative temperature remains securely inside the 18–26°C comfort band.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-2 min-h-[280px] flex items-center justify-center bg-canvas rounded-inner">
-            <div className="text-center p-6 space-y-2">
-              <p className="text-sm font-semibold text-slate-ink">24-Hour Thermal Curve Overlay</p>
-              <p className="text-xs text-slate-muted">
-                Indoor Min: {result ? `${Math.min(...result.indoorTemperature).toFixed(1)}°C` : "18.2°C"} • Outdoor Min: {result ? `${Math.min(...result.outdoorTemperature).toFixed(1)}°C` : "-15.0°C"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {result && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <CardHeader className="p-0 pb-4">
+              <CardTitle>Indoor vs Outdoor 24h Temperature</CardTitle>
+              <CardDescription>
+                {Math.min(...result.indoorTemperature) >= 18 && Math.max(...result.indoorTemperature) <= 26
+                  ? "Indoor operative temperature stays inside the 18–26°C comfort band all day."
+                  : `Indoor operative temperature ranges ${Math.min(...result.indoorTemperature).toFixed(1)}–${Math.max(...result.indoorTemperature).toFixed(1)}°C against the 18–26°C comfort band.`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 pt-2 min-h-[280px] flex items-center justify-center bg-canvas rounded-inner">
+              <div className="text-center p-6 space-y-2">
+                <p className="text-sm font-semibold text-slate-ink">24-Hour Thermal Curve Overlay</p>
+                <p className="text-xs text-slate-muted">
+                  Indoor Min: {Math.min(...result.indoorTemperature).toFixed(1)}°C • Outdoor Min: {Math.min(...result.outdoorTemperature).toFixed(1)}°C
+                </p>
+                <Link href="/dashboard" className="block text-xs text-shop-violet hover:text-shop-violet-hover transition-colors">
+                  View the full chart on the Dashboard →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="p-6">
-          <CardHeader className="p-0 pb-4">
-            <CardTitle>Thermal State Segmentation</CardTitle>
-            <CardDescription>24-hour distribution across Under-Comfort, Comfort, and Overheating thresholds.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-2 space-y-4">
-            <div className="h-6 w-full rounded-pill bg-warm-fog overflow-hidden flex">
-              <div className="bg-thermal-cold h-full" style={{ width: result ? `${((result.comfort.underComfortHours / result.timeline.length) * 100).toFixed(1)}%` : "18.7%" }} title="Under-comfort" />
-              <div className="bg-thermal-comfort h-full" style={{ width: result ? `${((result.comfort.comfortHours / result.timeline.length) * 100).toFixed(1)}%` : "81.3%" }} title="Comfort" />
-              <div className="bg-thermal-hot h-full" style={{ width: result ? `${((result.comfort.overheatingHours / result.timeline.length) * 100).toFixed(1)}%` : "0%" }} title="Overheating" />
-            </div>
-            <div className="flex justify-between text-xs text-slate-muted">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-pill bg-thermal-cold" />
-                <span>Under-Comfort (&lt;18°C): {result ? `${result.comfort.underComfortHours.toFixed(1)} h` : "4.5 h"}</span>
+          <Card className="p-6">
+            <CardHeader className="p-0 pb-4">
+              <CardTitle>Thermal State Segmentation</CardTitle>
+              <CardDescription>24-hour distribution across Under-Comfort, Comfort, and Overheating thresholds.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 pt-2 space-y-4">
+              <div className="h-6 w-full rounded-pill bg-warm-fog overflow-hidden flex">
+                <div className="bg-thermal-cold h-full" style={{ width: `${((result.comfort.underComfortHours / result.timeline.length) * 100).toFixed(1)}%` }} title="Under-comfort" />
+                <div className="bg-thermal-comfort h-full" style={{ width: `${((result.comfort.comfortHours / result.timeline.length) * 100).toFixed(1)}%` }} title="Comfort" />
+                <div className="bg-thermal-hot h-full" style={{ width: `${((result.comfort.overheatingHours / result.timeline.length) * 100).toFixed(1)}%` }} title="Overheating" />
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-pill bg-thermal-comfort" />
-                <span>Comfort (18–26°C): {result ? `${result.comfort.comfortHours.toFixed(1)} h` : "19.5 h"}</span>
+              <div className="flex flex-wrap justify-between gap-2 text-xs text-slate-muted">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-pill bg-thermal-cold" />
+                  <span>Under-Comfort (&lt;18°C): {result.comfort.underComfortHours.toFixed(1)} h</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-pill bg-thermal-comfort" />
+                  <span>Comfort (18–26°C): {result.comfort.comfortHours.toFixed(1)} h</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-pill bg-thermal-hot" />
+                  <span>Overheating (&gt;26°C): {result.comfort.overheatingHours.toFixed(1)} h</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-pill bg-thermal-hot" />
-                <span>Overheating (&gt;26°C): {result ? `${result.comfort.overheatingHours.toFixed(1)} h` : "0.0 h"}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Deep-Dive Sub-Result Route Links */}
       <Card className="p-6">

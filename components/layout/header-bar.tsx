@@ -41,7 +41,7 @@ export function HeaderBar({ sidebarExpanded, onToggleSidebar }: HeaderBarProps) 
   };
 
   return (
-    <header className="sticky top-0 z-40 h-16 w-full bg-surface border-b border-border-subtle px-4 sm:px-6 flex items-center justify-between select-none">
+    <header className="fixed top-0 left-0 right-0 z-40 h-16 w-full bg-surface border-b border-border-subtle px-4 sm:px-6 flex items-center justify-between select-none">
       {/* Left: Rail toggle & Brand Identity */}
       <div className="flex items-center gap-3">
         <button

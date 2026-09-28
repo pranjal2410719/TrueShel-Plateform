@@ -17,6 +17,16 @@ function fmt(value: number, unit: string) {
   return `${value.toFixed(2)} ${unit}`;
 }
 
+/** Helper to format a delta with an explicit +/- sign */
+function fmtDelta(value: number, unit: string) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)} ${unit}`;
+}
+
+/** Risk severity rank — lower is safer. Used instead of lexical string
+ *  comparison, which wrongly ranked "high" risk below "low" (h < l). */
+const RISK_RANK: Record<string, number> = { low: 0, moderate: 1, high: 2, critical: 3 };
+
 export default function ComparePage() {
   const {
     designA,
@@ -43,34 +53,42 @@ export default function ComparePage() {
   }
 
   // Build comparison rows from actual SimulationResult data.
+  // Deltas are always (A − B) with a +/- sign; the verdict is computed from
+  // direction-aware rules (higher is better vs lower is better).
   const comparisonRows = [
     {
       param: "Comfort Hours",
       designA: fmt(resultA.comfort.comfortHours, "h"),
       designB: fmt(resultB.comfort.comfortHours, "h"),
-      delta: fmt(resultA.comfort.comfortHours - resultB.comfort.comfortHours, "h"),
+      delta: fmtDelta(resultA.comfort.comfortHours - resultB.comfort.comfortHours, "h"),
       positive: resultA.comfort.comfortHours >= resultB.comfort.comfortHours,
     },
     {
       param: "Peak Heat Loss",
       designA: fmt(resultA.peakHeatLoss, "kW"),
       designB: fmt(resultB.peakHeatLoss, "kW"),
-      delta: fmt(resultB.peakHeatLoss - resultA.peakHeatLoss, "kW"),
+      // Negative delta = A loses less heat = A wins.
+      delta: fmtDelta(resultA.peakHeatLoss - resultB.peakHeatLoss, "kW"),
       positive: resultA.peakHeatLoss <= resultB.peakHeatLoss,
     },
     {
       param: "Autonomy (to 16°C)",
       designA: fmt(resultA.autonomy, "h"),
       designB: fmt(resultB.autonomy, "h"),
-      delta: fmt(resultA.autonomy - resultB.autonomy, "h"),
+      delta: fmtDelta(resultA.autonomy - resultB.autonomy, "h"),
       positive: resultA.autonomy >= resultB.autonomy,
     },
     {
       param: "Risk Level",
       designA: resultA.risk,
       designB: resultB.risk,
-      delta: resultA.risk === resultB.risk ? "0" : resultA.risk,
-      positive: resultA.risk <= resultB.risk, // lexical order works for enum values
+      delta:
+        resultA.risk === resultB.risk
+          ? "equal"
+          : RISK_RANK[resultA.risk] < RISK_RANK[resultB.risk]
+          ? "A safer"
+          : "B safer",
+      positive: RISK_RANK[resultA.risk] <= RISK_RANK[resultB.risk],
     },
   ];
 
@@ -88,14 +106,30 @@ export default function ComparePage() {
             Side‑by‑side engineering evaluation between two shelter designs.
           </p>
         </div>
+</div>
+
+      {/* 3D Model Comparison */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
+        <div className="border rounded-inner overflow-hidden flex flex-col min-h-0">
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas shrink-0">Design A</h2>
+          <div className="flex-1 min-h-0">
+            {designA && <ShelterModel design={designA} mode="normal" />}
+          </div>
+        </div>
+        <div className="border rounded-inner overflow-hidden flex flex-col min-h-0">
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas shrink-0">Design B</h2>
+          <div className="flex-1 min-h-0">
+            {designB && <ShelterModel design={designB} mode="normal" />}
+          </div>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI Cards - Stacked vertically on all screens */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Comfort */}
         <Card className="p-5">
           <span className="text-xs font-medium text-slate-muted block mb-1">
-            Comfort Differential (Δ)
+            Comfort Differential (&Delta;)
           </span>
           <p className="text-2xl font-bold tracking-tighter text-slate-ink">
             {comparisonRows[0].delta}
@@ -106,13 +140,13 @@ export default function ComparePage() {
             ) : (
               <TrendingDown className="w-3.5 h-3.5 mr-1" />
             )}
-            {comparisonRows[0].positive ? "+" : "-"} comfort hours
+            {comparisonRows[0].delta} comfort hours
           </span>
         </Card>
         {/* Heat Loss */}
         <Card className="p-5">
           <span className="text-xs font-medium text-slate-muted block mb-1">
-            Heat Loss Reduction (Δ)
+            Heat Loss Reduction (&Delta;)
           </span>
           <p className="text-2xl font-bold tracking-tighter text-slate-ink">
             {comparisonRows[1].delta}
@@ -123,13 +157,13 @@ export default function ComparePage() {
             ) : (
               <TrendingUp className="w-3.5 h-3.5 mr-1" />
             )}
-            {comparisonRows[1].delta} heat loss
+            {comparisonRows[1].delta} peak heat loss (A &minus; B)
           </span>
         </Card>
         {/* Autonomy */}
         <Card className="p-5">
           <span className="text-xs font-medium text-slate-muted block mb-1">
-            Autonomy Extension (Δ)
+            Autonomy Extension (&Delta;)
           </span>
           <p className="text-2xl font-bold tracking-tighter text-slate-ink">
             {comparisonRows[2].delta}
@@ -140,21 +174,9 @@ export default function ComparePage() {
             ) : (
               <TrendingDown className="w-3.5 h-3.5 mr-1" />
             )}
-            {comparisonRows[2].positive ? "+" : "-"} autonomy hours
+            {comparisonRows[2].delta} autonomy hours
           </span>
         </Card>
-      </div>
-
-      {/* 3D Model Comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
-        <div className="border rounded-lg overflow-hidden">
-          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design A</h2>
-          {designA && <ShelterModel design={designA} mode="normal" />}
-        </div>
-        <div className="border rounded-lg overflow-hidden">
-          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas">Design B</h2>
-          {designB && <ShelterModel design={designB} mode="normal" />}
-        </div>
       </div>
 
       {/* Comparison Table */}

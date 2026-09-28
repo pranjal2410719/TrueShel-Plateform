@@ -22,6 +22,15 @@ export function DropdownMenu({ children }: { children: React.ReactNode }) {
     };
     if (open) {
       document.addEventListener("mousedown", handleOutsideClick);
+      // Escape dismisses the menu (keyboard users previously had no way out)
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setOpen(false);
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("mousedown", handleOutsideClick);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
     }
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
@@ -53,9 +62,15 @@ export function DropdownMenuTrigger({
   };
 
   if (asChild && React.isValidElement(children)) {
-    const child = children as React.ReactElement<{ onClick?: React.MouseEventHandler<HTMLElement> }>;
+    const child = children as React.ReactElement<{
+      onClick?: React.MouseEventHandler<HTMLElement>;
+      "aria-expanded"?: boolean;
+      "aria-haspopup"?: string;
+    }>;
     return React.cloneElement(child, {
       onClick: handleClick,
+      "aria-expanded": context.open,
+      "aria-haspopup": "menu",
     });
   }
 
