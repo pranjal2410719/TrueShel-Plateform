@@ -11,6 +11,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_SHELTER_DESIGN } from '@/lib/mock/repository';
+import { deriveGeometryFromClimate } from '@/lib/calculations/climateAdaptation';
 import type {
   ShelterDesign,
   ShelterGeometry,
@@ -20,6 +21,7 @@ import type {
   ThermalMassConfig,
   PCMConfig,
   VentilationMode,
+  ClimateData,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,9 @@ interface ShelterStoreState {
 
   // --- Shading ---
   setShadingEnabled: (enabled: boolean) => void;
+
+  // --- Climate Adaptation ---
+  applyClimateAdaptation: (climate: ClimateData) => void;
 
   // --- Persistence ---
   saveDesign: () => void;
@@ -170,6 +175,33 @@ export const useShelterStore = create<ShelterStoreState>()(
             updatedAt: new Date().toISOString(),
           },
         })),
+
+      // --- Climate Adaptation ---
+      applyClimateAdaptation: (climate) =>
+        set((state) => {
+          const adaptation = deriveGeometryFromClimate(climate);
+          const windowArea = adaptation.openings.windowToWallRatio *
+            2 * (adaptation.geometry.length + adaptation.geometry.width) * adaptation.geometry.height;
+          return {
+            isDirty: true,
+            design: {
+              ...state.design,
+              geometry: adaptation.geometry,
+              openings: {
+                ...state.design.openings,
+                windowArea,
+                windowCount: adaptation.openings.windowCount,
+                windowOrientation: adaptation.openings.windowOrientation,
+              },
+              thermalMass: {
+                ...state.design.thermalMass,
+                level: adaptation.thermalMass.level,
+              },
+              shadingEnabled: adaptation.shading.enabled,
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        }),
 
       // --- Save (marks clean, stamps updatedAt) ---
       saveDesign: () => {

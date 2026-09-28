@@ -63,6 +63,189 @@ export const LADAKH_CLIMATE: ClimateData = {
   ],
 };
 
+export const ALPINE_CLIMATE: ClimateData = {
+  location: 'Zermatt, Alps',
+  region: 'Switzerland',
+  zone: 'cold-continental',
+  altitude: 1620,
+  hourlyTemperature: [
+    -5, -6, -7, -8, -8, -7, -5, -2, 1, 3, 4, 5,
+    5, 4, 3, 1, -1, -3, -4, -4, -5, -5, -5, -5,
+  ],
+  hourlySolarIrradiance: [
+    0, 0, 0, 0, 0, 0, 30, 120, 280, 420, 500, 540,
+    520, 460, 360, 220, 100, 20, 0, 0, 0, 0, 0, 0,
+  ],
+  hourlyWindSpeed: [
+    3, 3, 4, 4, 5, 5, 6, 6, 5, 5, 5, 6,
+    6, 6, 5, 5, 4, 4, 3, 3, 3, 3, 3, 3,
+  ],
+  hourlyHumidity: [
+    55, 56, 57, 58, 58, 57, 55, 52, 48, 45, 43, 42,
+    42, 44, 46, 48, 50, 52, 54, 55, 55, 55, 55, 55,
+  ],
+  dailyMinTemp: -8,
+  dailyMaxTemp: 5,
+  avgSolarIrradiance: 540,
+  windExposure: 'moderate',
+  solarExposure: 'moderate',
+  freezeThawRisk: 'high',
+  designImplications: [
+    'Heavy snow load requires steep gabled roof',
+    'Moderate solar: balanced glazing ratio',
+    'High freeze-thaw: robust envelope insulation',
+    'Wind exposure: compact plan reduces losses',
+  ],
+};
+
+export const ARCTIC_CLIMATE: ClimateData = {
+  location: 'Longyearbyen, Svalbard',
+  region: 'Norway',
+  zone: 'cold-continental',
+  altitude: 10,
+  hourlyTemperature: [
+    -15, -16, -17, -18, -18, -17, -15, -12, -8, -5, -3, -2,
+    -2, -3, -5, -8, -10, -12, -13, -14, -14, -15, -15, -15,
+  ],
+  hourlySolarIrradiance: [
+    0, 0, 0, 0, 0, 0, 0, 0, 50, 150, 250, 300,
+    280, 200, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ],
+  hourlyWindSpeed: [
+    8, 8, 9, 9, 10, 10, 11, 11, 10, 10, 10, 11,
+    11, 11, 10, 10, 9, 9, 8, 8, 8, 8, 8, 8,
+  ],
+  hourlyHumidity: [
+    70, 71, 72, 73, 73, 72, 70, 68, 65, 62, 60, 58,
+    58, 60, 62, 65, 68, 70, 72, 73, 73, 73, 73, 73,
+  ],
+  dailyMinTemp: -18,
+  dailyMaxTemp: -2,
+  avgSolarIrradiance: 300,
+  windExposure: 'extreme',
+  solarExposure: 'low',
+  freezeThawRisk: 'moderate',
+  designImplications: [
+    'Extreme wind: low compact form essential',
+    'Minimal solar: small well-insulated windows',
+    'Extreme cold: maximum insulation thickness',
+    'Low ceiling height reduces volume to heat',
+  ],
+};
+
+export const DESERT_CLIMATE: ClimateData = {
+  location: 'Phoenix, Arizona',
+  region: 'USA',
+  zone: 'hot-arid',
+  altitude: 331,
+  hourlyTemperature: [
+    8, 7, 6, 5, 5, 5, 6, 8, 12, 16, 20, 24,
+    27, 29, 30, 30, 28, 25, 21, 17, 14, 12, 10, 9,
+  ],
+  hourlySolarIrradiance: [
+    0, 0, 0, 0, 0, 0, 100, 300, 550, 750, 900, 1000,
+    1020, 980, 880, 720, 500, 250, 50, 0, 0, 0, 0, 0,
+  ],
+  hourlyWindSpeed: [
+    2, 2, 3, 3, 4, 4, 5, 5, 4, 4, 4, 5,
+    5, 5, 4, 4, 3, 3, 2, 2, 2, 2, 2, 2,
+  ],
+  hourlyHumidity: [
+    45, 46, 48, 50, 50, 48, 45, 40, 35, 30, 25, 20,
+    18, 15, 15, 18, 22, 28, 35, 40, 42, 44, 45, 45,
+  ],
+  dailyMinTemp: 5,
+  dailyMaxTemp: 30,
+  avgSolarIrradiance: 1020,
+  windExposure: 'low',
+  solarExposure: 'very-high',
+  freezeThawRisk: 'low',
+  designImplications: [
+    'Extreme solar: shading devices essential',
+    'High thermal mass to buffer diurnal swing',
+    'Small windows to reduce heat gain',
+    'Light-colored exterior to reflect radiation',
+  ],
+};
+
+export const TROPICAL_CLIMATE: ClimateData = {
+  location: 'Mumbai, India',
+  region: 'India',
+  zone: 'tropical',
+  altitude: 14,
+  hourlyTemperature: [
+    24, 23, 23, 22, 22, 23, 24, 26, 28, 30, 31, 32,
+    33, 33, 32, 31, 30, 29, 28, 27, 26, 25, 25, 24,
+  ],
+  hourlySolarIrradiance: [
+    0, 0, 0, 0, 0, 0, 50, 200, 450, 650, 800, 900,
+    920, 880, 780, 620, 400, 180, 30, 0, 0, 0, 0, 0,
+  ],
+  hourlyWindSpeed: [
+    3, 3, 4, 4, 5, 5, 6, 7, 8, 8, 7, 7,
+    6, 6, 5, 5, 4, 4, 3, 3, 3, 3, 3, 3,
+  ],
+  hourlyHumidity: [
+    75, 76, 78, 80, 80, 78, 75, 70, 65, 60, 55, 50,
+    48, 50, 55, 60, 65, 70, 72, 74, 75, 75, 75, 75,
+  ],
+  dailyMinTemp: 22,
+  dailyMaxTemp: 33,
+  avgSolarIrradiance: 920,
+  windExposure: 'moderate',
+  solarExposure: 'very-high',
+  freezeThawRisk: 'low',
+  designImplications: [
+    'High humidity: ventilation critical',
+    'Solar shading prevents overheating',
+    'Lightweight construction with low thermal mass',
+    'Large openings for cross-ventilation',
+  ],
+};
+
+export const TEMPERATE_CLIMATE: ClimateData = {
+  location: 'Barcelona, Spain',
+  region: 'Spain',
+  zone: 'temperate',
+  altitude: 12,
+  hourlyTemperature: [
+    8, 7, 7, 6, 6, 7, 8, 10, 13, 16, 18, 20,
+    21, 22, 21, 20, 18, 16, 14, 12, 11, 10, 9, 8,
+  ],
+  hourlySolarIrradiance: [
+    0, 0, 0, 0, 0, 0, 30, 150, 350, 520, 650, 720,
+    700, 620, 500, 350, 180, 50, 0, 0, 0, 0, 0, 0,
+  ],
+  hourlyWindSpeed: [
+    4, 4, 5, 5, 6, 6, 7, 7, 6, 6, 6, 7,
+    7, 7, 6, 6, 5, 5, 4, 4, 4, 4, 4, 4,
+  ],
+  hourlyHumidity: [
+    60, 62, 64, 65, 65, 63, 60, 56, 52, 48, 45, 42,
+    40, 42, 45, 48, 52, 56, 58, 60, 60, 60, 60, 60,
+  ],
+  dailyMinTemp: 6,
+  dailyMaxTemp: 22,
+  avgSolarIrradiance: 720,
+  windExposure: 'moderate',
+  solarExposure: 'high',
+  freezeThawRisk: 'low',
+  designImplications: [
+    'Mild climate: moderate insulation sufficient',
+    'South glazing for winter solar gain',
+    'Shading for summer overheating prevention',
+    'Natural ventilation for shoulder seasons',
+  ],
+};
+
+export const CLIMATE_ZONES = {
+  'high-altitude-cold': LADAKH_CLIMATE,
+  'cold-continental': ALPINE_CLIMATE,
+  'hot-arid': DESERT_CLIMATE,
+  tropical: TROPICAL_CLIMATE,
+  temperate: TEMPERATE_CLIMATE,
+};
+
 // ---------------------------------------------------------------------------
 // Material Library — 10 materials conforming to ThermalMaterial
 // ---------------------------------------------------------------------------

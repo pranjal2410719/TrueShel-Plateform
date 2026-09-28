@@ -5,18 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Save, Compass } from "lucide-react";
+import { Save, Compass, Sparkles } from "lucide-react";
 import ShelterModel from "@/components/visualization/ShelterModel";
 import { useShelterDesign, useShelterStore } from "@/stores/shelter-store";
-import type { Orientation, ShelterGeometry } from "@/types";
+import { CLIMATE_ZONES } from "@/lib/mock/repository";
+import { CLIMATE_ZONE_LABELS, deriveGeometryFromClimate } from "@/lib/calculations/climateAdaptation";
+import type { Orientation, ShelterGeometry, ClimateZone } from "@/types";
 
 export default function ShelterDesignerPage() {
   const [activeTab, setActiveTab] = useState("geometry");
+  const [selectedClimate, setSelectedClimate] = useState<ClimateZone>("high-altitude-cold");
+  const [showAdaptation, setShowAdaptation] = useState(false);
   // Store selectors
   const design = useShelterDesign();
   const setGeometry = useShelterStore((s) => s.updateGeometry);
   const setOrientation = useShelterStore((s) => s.updateOrientation);
   const saveDesign = useShelterStore((s) => s.saveDesign);
+  const applyClimateAdaptation = useShelterStore((s) => s.applyClimateAdaptation);
 
   // Handlers for inputs — clearing a number field yields "" → parseFloat →
   // NaN, which previously flowed straight into the store and broke the 3D
@@ -57,6 +62,54 @@ export default function ShelterDesignerPage() {
           </Button>
         </div>
       </div>
+
+      <Card className="p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
+            <label htmlFor="climate-select" className="text-xs font-medium text-slate-muted block mb-1">
+              Climate Zone
+            </label>
+            <select
+              id="climate-select"
+              value={selectedClimate}
+              onChange={(e) => setSelectedClimate(e.target.value as ClimateZone)}
+              className="w-full px-3 py-2 rounded-inner border border-border-subtle bg-surface text-sm text-slate-ink focus:outline-none focus:ring-2 focus:ring-shop-violet-subtle"
+            >
+              {Object.entries(CLIMATE_ZONE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            onClick={() => {
+              const climate = CLIMATE_ZONES[selectedClimate];
+              if (climate) {
+                applyClimateAdaptation(climate);
+                setShowAdaptation(true);
+              }
+            }}
+            className="gap-1.5 self-end"
+          >
+            <Sparkles className="w-4 h-4" />
+            Adapt to Climate
+          </Button>
+        </div>
+        {showAdaptation && (
+          <div className="mt-4 p-3 bg-shop-violet-subtle rounded-inner">
+            <p className="text-xs font-semibold text-shop-violet mb-2">Applied Climate Adaptation</p>
+            <ul className="text-xs text-slate-ink space-y-1">
+              {deriveGeometryFromClimate(CLIMATE_ZONES[selectedClimate] ?? CLIMATE_ZONES["high-altitude-cold"]).rationale.map((r, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="text-shop-violet mt-0.5">•</span>
+                  {r}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Card>
 
       {/* 40 / 60 Split Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
