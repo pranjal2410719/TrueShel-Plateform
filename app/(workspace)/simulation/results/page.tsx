@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { ArrowRight, Database, Play } from "lucide-react";
 import { useSimulationStore } from "@/stores/simulation-store";
+import { MultiDimensionalChart } from "@/components/MultiDimensionalChart";
 
 export default function SimulationResultsPage() {
   const result = useSimulationStore((state) => state.result);
@@ -164,16 +165,8 @@ export default function SimulationResultsPage() {
                   : `Indoor operative temperature ranges ${Math.min(...result.indoorTemperature).toFixed(1)}–${Math.max(...result.indoorTemperature).toFixed(1)}°C against the 18–26°C comfort band.`}
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 pt-2 min-h-[280px] flex items-center justify-center bg-canvas rounded-inner">
-              <div className="text-center p-6 space-y-2">
-                <p className="text-sm font-semibold text-slate-ink">24-Hour Thermal Curve Overlay</p>
-                <p className="text-xs text-slate-muted">
-                  Indoor Min: {Math.min(...result.indoorTemperature).toFixed(1)}°C • Outdoor Min: {Math.min(...result.outdoorTemperature).toFixed(1)}°C
-                </p>
-                <Link href="/dashboard" className="block text-xs text-shop-violet hover:text-shop-violet-hover transition-colors">
-                  View the full chart on the Dashboard →
-                </Link>
-              </div>
+            <CardContent className="p-0 pt-2 min-h-[280px]">
+              <MultiDimensionalChart />
             </CardContent>
           </Card>
 
