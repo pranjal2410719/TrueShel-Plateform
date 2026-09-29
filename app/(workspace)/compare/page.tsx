@@ -4,8 +4,8 @@
 
 "use client";
 
-import React, { useEffect } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { TrendingUp, TrendingDown, Brain, Layers, Thermometer, Wind } from "lucide-react";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useComparisonStore } from "@/stores/comparison-store";
@@ -37,7 +37,9 @@ export default function ComparePage() {
     setDesignB,
   } = useComparisonStore();
 
-  // Initialise designs from the shelter store on first render if not set.
+  const [isThinking, setIsThinking] = useState(true);
+  const [thinkingStep, setThinkingStep] = useState(0);
+
   const currentDesign = useShelterStore((s) => s.design);
   useEffect(() => {
     if (!designA) setDesignA(currentDesign);
@@ -45,7 +47,65 @@ export default function ComparePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Guard against missing simulation results.
+  useEffect(() => {
+    const steps = [0, 1, 2];
+    let current = 0;
+    const interval = setInterval(() => {
+      current++;
+      if (current < steps.length) {
+        setThinkingStep(current);
+      } else {
+        clearInterval(interval);
+        setTimeout(() => setIsThinking(false), 400);
+      }
+    }, 700);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (isThinking) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full border-4 border-shop-violet-subtle border-t-shop-violet animate-spin" />
+          <Brain className="w-8 h-8 text-shop-violet absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold text-slate-ink">Analyzing Designs</p>
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-muted">
+            {thinkingStep >= 0 && (
+              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 0 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
+                <Layers className="w-3.5 h-3.5" />
+                Comparing geometry
+              </span>
+            )}
+            {thinkingStep >= 1 && (
+              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 1 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
+                <Thermometer className="w-3.5 h-3.5" />
+                Running thermal analysis
+              </span>
+            )}
+            {thinkingStep >= 2 && (
+              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 2 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
+                <Wind className="w-3.5 h-3.5" />
+                Evaluating performance
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                i <= thinkingStep ? "bg-shop-violet" : "bg-warm-fog"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!resultA || !resultB) {
     return (
       <div className="p-8 text-slate-muted">Loading simulation results…</div>
