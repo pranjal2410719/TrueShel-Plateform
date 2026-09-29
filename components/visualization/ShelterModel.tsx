@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Box, Plane } from "@react-three/drei";
 import { DoubleSide } from "three";
 import type { ShelterDesign, ThermalTwinMode, ClimateData } from "@/types";
@@ -9,6 +9,47 @@ import { evaluateShelterDesign } from "@/lib/calculations/evaluateDesign";
 import { getTemperatureHex } from "@/lib/calculations/thermal";
 
 const ROOF_TILT = Math.PI / 6;
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function stageProgress(progress: number, start: number, end: number): number {
+  if (progress <= start) return 0;
+  if (progress >= end) return 1;
+  return easeOutCubic((progress - start) / (end - start));
+}
+
+function BuildablePart({
+  progress,
+  start,
+  end,
+  children,
+  type = "scale",
+}: {
+  progress: number;
+  start: number;
+  end: number;
+  children: React.ReactNode;
+  type?: "scale" | "rise" | "drop";
+}) {
+  const ref = useRef<import("three").Group>(null);
+  const p = stageProgress(progress, start, end);
+
+  useFrame(() => {
+    if (!ref.current) return;
+    if (type === "scale") {
+      ref.current.scale.setScalar(0.01 + p * 0.99);
+    } else if (type === "rise") {
+      ref.current.scale.y = 0.01 + p * 0.99;
+    } else if (type === "drop") {
+      ref.current.scale.setScalar(0.01 + p * 0.99);
+      ref.current.position.y = (1 - p) * 3;
+    }
+  });
+
+  return <group ref={ref}>{children}</group>;
+}
 
 function normalizeToDisplayTemp(value: number, values: number[]): number {
   if (values.length === 0) return 20;
@@ -122,12 +163,15 @@ export default function ShelterModel({
   mode = "normal",
   timestep = 0,
   climate,
+  buildProgress,
 }: {
   design: ShelterDesign;
   mode?: ThermalTwinMode;
   timestep?: number;
   climate?: ClimateData;
+  buildProgress?: number;
 }) {
+  const progress = buildProgress ?? 1;
   const { length, width, height, roofType } = design.geometry;
   const halfLen = length / 2;
   const halfWid = width / 2;
@@ -222,15 +266,33 @@ export default function ShelterModel({
         ) : (
           <directionalLight position={[10, 10, 5]} intensity={0.7} castShadow />
         )}
-        <Plane args={[length, width]} rotation={[-Math.PI / 2, 0, 0]} material-color={0xffffff} />
-        <Box args={[length, height, wallThickness]} position={[0, height / 2, -halfWid]} material-color={wallColor} />
-        <Box args={[length, height, wallThickness]} position={[0, height / 2, halfWid]} material-color={wallColor} />
-        <Box args={[wallThickness, height, width]} position={[halfLen, height / 2, 0]} material-color={wallColor} />
-        <Box args={[wallThickness, height, width]} position={[-halfLen, height / 2, 0]} material-color={wallColor} />
-        {Roof}
-        {door}
-        {windows}
-        <ShadingDevice design={design} />
+        <BuildablePart progress={progress} start={0} end={0.18} type="scale">
+          <Plane args={[length, width]} rotation={[-Math.PI / 2, 0, 0]} material-color={0xffffff} />
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.18} end={0.38} type="rise">
+          <Box args={[length, height, wallThickness]} position={[0, height / 2, -halfWid]} material-color={wallColor} />
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.23} end={0.43} type="rise">
+          <Box args={[length, height, wallThickness]} position={[0, height / 2, halfWid]} material-color={wallColor} />
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.28} end={0.48} type="rise">
+          <Box args={[wallThickness, height, width]} position={[halfLen, height / 2, 0]} material-color={wallColor} />
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.33} end={0.53} type="rise">
+          <Box args={[wallThickness, height, width]} position={[-halfLen, height / 2, 0]} material-color={wallColor} />
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.48} end={0.7} type="drop">
+          {Roof}
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.7} end={0.85} type="scale">
+          {door}
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.75} end={0.9} type="scale">
+          {windows}
+        </BuildablePart>
+        <BuildablePart progress={progress} start={0.85} end={1} type="scale">
+          <ShadingDevice design={design} />
+        </BuildablePart>
         {climate && climate.windExposure !== "low" && (
           <WindIndicator windSpeed={climate.hourlyWindSpeed[timestep] ?? 5} windDirection={180} />
         )}

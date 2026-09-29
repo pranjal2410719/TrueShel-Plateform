@@ -4,12 +4,15 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Brain, Layers, Thermometer, Wind } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useComparisonStore } from "@/stores/comparison-store";
 import { useShelterStore } from "@/stores/shelter-store";
+import { CLIMATE_ZONES } from "@/lib/mock/repository";
+import { CLIMATE_ZONE_LABELS, deriveGeometryFromClimate } from "@/lib/calculations/climateAdaptation";
+import type { ClimateZone, ShelterDesign } from "@/types";
 import ShelterModel from "@/components/visualization/ShelterModel";
 
 /** Helper to format numbers with appropriate units */
@@ -37,84 +40,79 @@ export default function ComparePage() {
     setDesignB,
   } = useComparisonStore();
 
-  const [isThinking, setIsThinking] = useState(true);
-  const [thinkingStep, setThinkingStep] = useState(0);
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [buildStage, setBuildStage] = useState(0);
+  const [selectedZone, setSelectedZone] = useState<ClimateZone>("high-altitude-cold");
 
   const currentDesign = useShelterStore((s) => s.design);
+
   useEffect(() => {
     if (!designA) setDesignA(currentDesign);
-    if (!designB) setDesignB(currentDesign);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const steps = [0, 1, 2];
-    let current = 0;
-    const interval = setInterval(() => {
-      current++;
-      if (current < steps.length) {
-        setThinkingStep(current);
-      } else {
-        clearInterval(interval);
-        setTimeout(() => setIsThinking(false), 400);
-      }
-    }, 700);
-    return () => clearInterval(interval);
+    if (designB) return;
+    const climate = CLIMATE_ZONES[selectedZone];
+    if (!climate) return;
+    const adaptation = deriveGeometryFromClimate(climate);
+    const wallArea = 2 * (adaptation.geometry.length + adaptation.geometry.width) * adaptation.geometry.height;
+    const windowArea = adaptation.openings.windowToWallRatio * wallArea;
+    const designBVariant: ShelterDesign = {
+      ...currentDesign,
+      id: "design-b-climate",
+      name: `Climate-Adapted (${CLIMATE_ZONE_LABELS[selectedZone]})`,
+      geometry: adaptation.geometry,
+      openings: {
+        ...currentDesign.openings,
+        windowArea,
+        windowCount: adaptation.openings.windowCount,
+        windowOrientation: adaptation.openings.windowOrientation,
+      },
+      thermalMass: {
+        ...currentDesign.thermalMass,
+        level: adaptation.thermalMass.level,
+      },
+      shadingEnabled: adaptation.shading.enabled,
+    };
+    setDesignB(designBVariant);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedZone]);
+
+  useEffect(() => {
+    const duration = 2200;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      setBuildProgress(progress);
+      if (progress < 0.18) setBuildStage(0);
+      else if (progress < 0.48) setBuildStage(1);
+      else if (progress < 0.7) setBuildStage(2);
+      else if (progress < 0.9) setBuildStage(3);
+      else setBuildStage(4);
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
-  if (isThinking) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <div className="relative">
-          <div className="w-20 h-20 rounded-full border-4 border-shop-violet-subtle border-t-shop-violet animate-spin" />
-          <Brain className="w-8 h-8 text-shop-violet absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-lg font-semibold text-slate-ink">Analyzing Designs</p>
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-muted">
-            {thinkingStep >= 0 && (
-              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 0 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
-                <Layers className="w-3.5 h-3.5" />
-                Comparing geometry
-              </span>
-            )}
-            {thinkingStep >= 1 && (
-              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 1 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
-                <Thermometer className="w-3.5 h-3.5" />
-                Running thermal analysis
-              </span>
-            )}
-            {thinkingStep >= 2 && (
-              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill transition-all duration-300 ${thinkingStep === 2 ? "bg-shop-violet-subtle text-shop-violet" : "text-slate-muted"}`}>
-                <Wind className="w-3.5 h-3.5" />
-                Evaluating performance
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                i <= thinkingStep ? "bg-shop-violet" : "bg-warm-fog"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const handleZoneChange = useCallback((zone: ClimateZone) => {
+    setSelectedZone(zone);
+    setBuildProgress(0);
+    setBuildStage(0);
+  }, []);
 
+  // Build comparison rows from actual SimulationResult data.
+  // Deltas are always (A − B) with a +/- sign; the verdict is computed from
+  // direction-aware rules (higher is better vs lower is better).
   if (!resultA || !resultB) {
     return (
       <div className="p-8 text-slate-muted">Loading simulation results…</div>
     );
   }
 
-  // Build comparison rows from actual SimulationResult data.
-  // Deltas are always (A − B) with a +/- sign; the verdict is computed from
-  // direction-aware rules (higher is better vs lower is better).
   const comparisonRows = [
     {
       param: "Comfort Hours",
@@ -154,7 +152,7 @@ export default function ComparePage() {
 
   return (
     <div className="space-y-6 w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-ink">
@@ -166,20 +164,73 @@ export default function ComparePage() {
             Side‑by‑side engineering evaluation between two shelter designs.
           </p>
         </div>
-</div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="climate-zone" className="text-xs font-medium text-slate-muted">
+            Climate Zone
+          </label>
+          <select
+            id="climate-zone"
+            value={selectedZone}
+            onChange={(e) => handleZoneChange(e.target.value as ClimateZone)}
+            className="px-3 py-1.5 rounded-inner border border-border-subtle bg-surface text-xs text-slate-ink focus:outline-none focus:ring-2 focus:ring-shop-violet-subtle"
+          >
+            {Object.entries(CLIMATE_ZONE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* 3D Model Comparison */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px]">
         <div className="border rounded-inner overflow-hidden flex flex-col min-h-0">
           <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas shrink-0">Design A</h2>
-          <div className="flex-1 min-h-0">
-            {designA && <ShelterModel design={designA} mode="normal" />}
+          <div className="flex-1 min-h-0 relative">
+            {designA && <ShelterModel design={designA} mode="normal" buildProgress={buildProgress} />}
+            {buildProgress < 1 && (
+              <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                <div className="w-48 h-1.5 bg-warm-fog rounded-pill overflow-hidden">
+                  <div
+                    className="h-full bg-shop-violet rounded-pill transition-all duration-150"
+                    style={{ width: `${buildProgress * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-muted">
+                  {buildStage === 0 && "Pouring foundation slab..."}
+                  {buildStage === 1 && "Raising wall assemblies..."}
+                  {buildStage === 2 && "Setting roof structure..."}
+                  {buildStage === 3 && "Installing glazing & apertures..."}
+                  {buildStage === 4 && "Model ready"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <div className="border rounded-inner overflow-hidden flex flex-col min-h-0">
-          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas shrink-0">Design B</h2>
-          <div className="flex-1 min-h-0">
-            {designB && <ShelterModel design={designB} mode="normal" />}
+          <h2 className="text-sm font-medium text-slate-ink p-2 bg-canvas shrink-0">
+            Design B — Climate-Adapted
+          </h2>
+          <div className="flex-1 min-h-0 relative">
+            {designB && <ShelterModel design={designB} mode="normal" buildProgress={buildProgress} />}
+            {buildProgress < 1 && (
+              <div className="absolute inset-0 bg-canvas/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                <div className="w-48 h-1.5 bg-warm-fog rounded-pill overflow-hidden">
+                  <div
+                    className="h-full bg-shop-violet rounded-pill transition-all duration-150"
+                    style={{ width: `${buildProgress * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-muted">
+                  {buildStage === 0 && "Pouring foundation slab..."}
+                  {buildStage === 1 && "Raising wall assemblies..."}
+                  {buildStage === 2 && "Setting roof structure..."}
+                  {buildStage === 3 && "Installing glazing & apertures..."}
+                  {buildStage === 4 && "Model ready"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
